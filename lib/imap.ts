@@ -1,6 +1,12 @@
+/**
+ * IMAP Mail Okuyucu — Booking.com transfer mailleri
+ * Sadece sync işlemi için kullanılır, sonuçlar cache'e yazılır.
+ */
+
 import { ImapFlow } from 'imapflow'
 import { simpleParser, ParsedMail } from 'mailparser'
 import type { Reservation } from './types'
+import { mergeReservations, saveSyncMeta, getSyncMeta } from './cache'
 
 function getClient() {
   return new ImapFlow({
@@ -15,17 +21,12 @@ function getClient() {
   })
 }
 
-// =============================================
-// Tarih parse yardımcıları
-// =============================================
-
 const monthMap: Record<string, string> = {
   January: '01', February: '02', March: '03', April: '04',
   May: '05', June: '06', July: '07', August: '08',
   September: '09', October: '10', November: '11', December: '12',
 }
 
-/** "Friday, 20 March 2026" → "2026-03-20" */
 function parseDateStr(dateStr: string): string | undefined {
   const match = dateStr.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/)
   if (!match) return undefined
@@ -35,10 +36,6 @@ function parseDateStr(dateStr: string): string | undefined {
   if (!month) return undefined
   return `${year}-${month}-${day}`
 }
-
-// =============================================
-// Şehir çıkarma
-// =============================================
 
 function extractCity(pickup: string, dropoff: string): string {
   const text = `${pickup} ${dropoff}`
@@ -54,12 +51,9 @@ function extractCity(pickup: string, dropoff: string): string {
   if (/Side/i.test(text)) return 'Side'
   if (/Belek/i.test(text)) return 'Belek'
   if (/Bursa/i.test(text)) return 'Bursa'
+  if (/Denizli|Pamukkale/i.test(text)) return 'Denizli'
   return 'Diğer'
 }
-
-// =============================================
-// Mail tipini belirle
-// =============================================
 
 function getMailType(subject: string): 'new' | 'cancelled' | 'updated' | null {
   if (subject.includes('NEW confirmation')) return 'new'
@@ -72,10 +66,6 @@ function extractBookingId(subject: string): string {
   const match = subject.match(/#(\d+)/)
   return match ? match[1] : ''
 }
-
-// =============================================
-// Mail body parse
-// =============================================
 
 function parseMailText(text: string): Partial<Reservation> {
   const result: Partial<Reservation> = {}
@@ -115,15 +105,17 @@ function parseMailText(text: string): Partial<Reservation> {
   return result
 }
 
-// =============================================
-// Ana fonksiyon: Mailleri çek ve parse et
-// =============================================
-
-export async function fetchReservations(options?: {
-  date?: string    // YYYY-MM-DD
-}): Promise<Reservation[]> {
+/**
+ * IMAP'tan mailleri sync et ve cache'e yaz.
+ * lastUid'den sonraki yeni mailleri okur (incremental sync).
+ * force=true ise tümünü baştan okur.
+ */
+export async function syncFromImap(force = false): Promise<{ synced: number; total: number }> {
   const client = getClient()
-  const reservations: Reservation[] = []
+  const newReservations: Reservation[] = []
+
+  const meta = force ? null : await getSyncMeta()
+  let maxUid = 0
 
   try {
     await client.connect()
@@ -131,32 +123,35 @@ export async function fetchReservations(options?: {
 
     try {
       const mailbox = client.mailbox
-      if (!mailbox || mailbox.exists === 0) return []
+      if (!mailbox || mailbox.exists === 0) return { synced: 0, total: 0 }
 
-      // IMAP SEARCH ile sadece Booking.com maillerini bul
-      // Tarih verildiyse, o tarih civarındaki mailleri ara
+      // Booking.com maillerini ara
       const searchCriteria: Record<string, unknown> = {
         from: 'booking.com',
       }
 
-      // Tarihe göre arama sınırla — verilen tarihten 7 gün önce gelen mailler
-      if (options?.date) {
-        const targetDate = new Date(options.date)
-        const searchSince = new Date(targetDate)
-        searchSince.setDate(searchSince.getDate() - 14) // 14 gün öncesinden beri
-        searchCriteria.since = searchSince
+      // Incremental: sadece son sync'ten sonraki UID'leri oku
+      if (meta?.lastUid) {
+        searchCriteria.uid = `${meta.lastUid + 1}:*`
       }
 
       const searchResult = await client.search(searchCriteria, { uid: true })
       const uids = Array.isArray(searchResult) ? searchResult : []
 
-      if (uids.length === 0) return []
+      if (uids.length === 0) {
+        await saveSyncMeta({
+          lastSync: new Date().toISOString(),
+          totalEmails: meta?.totalEmails || 0,
+          lastUid: meta?.lastUid || 0,
+        })
+        return { synced: 0, total: meta?.totalEmails || 0 }
+      }
 
-      // Son 300 uid ile sınırla (performans)
-      const limitedUids = uids.slice(-300)
-      const uidRange = limitedUids.join(',')
+      console.log(`[Sync] ${uids.length} yeni mail okunacak...`)
 
-      for await (const msg of client.fetch(uidRange, { envelope: true, source: true }, { uid: true })) {
+      const uidRange = uids.join(',')
+
+      for await (const msg of client.fetch(uidRange, { envelope: true, source: true, uid: true }, { uid: true })) {
         const subject = msg.envelope?.subject || ''
         const mailType = getMailType(subject)
         if (!mailType) continue
@@ -173,12 +168,9 @@ export async function fetchReservations(options?: {
         const dropoff = fields.dropoffLocation || ''
         const city = extractCity(pickup, dropoff)
 
-        const transferDateISO = fields.flightDateISO || fields.pickupDateISO
+        if (msg.uid > maxUid) maxUid = msg.uid
 
-        // Tarih filtresi
-        if (options?.date && transferDateISO !== options.date) continue
-
-        reservations.push({
+        newReservations.push({
           id: `${bookingId}-${mailType}`,
           bookingId: fields.bookingId || bookingId,
           type: mailType,
@@ -210,22 +202,17 @@ export async function fetchReservations(options?: {
     throw err
   }
 
-  // En yeni mailler üstte
-  reservations.reverse()
+  // Cache'e merge et
+  const merged = await mergeReservations(newReservations)
 
-  // Aynı bookingId için en son durumu tut
-  if (options?.date) {
-    const latest = new Map<string, Reservation>()
-    for (const r of reservations) {
-      const existing = latest.get(r.bookingId)
-      if (!existing) {
-        latest.set(r.bookingId, r)
-      } else if (r.type === 'cancelled') {
-        latest.set(r.bookingId, r)
-      }
-    }
-    return Array.from(latest.values())
-  }
+  // Sync meta güncelle
+  await saveSyncMeta({
+    lastSync: new Date().toISOString(),
+    totalEmails: merged.length,
+    lastUid: maxUid > 0 ? maxUid : (meta?.lastUid || 0),
+  })
 
-  return reservations
+  console.log(`[Sync] ${newReservations.length} yeni rezervasyon eklendi. Toplam: ${merged.length}`)
+
+  return { synced: newReservations.length, total: merged.length }
 }

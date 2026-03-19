@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 100">
+  <defs>
+    <style>
+      .logo-text { font-family: 'Helvetica Neue', Arial, sans-serif; }
+    </style>
+  </defs>
+  <!-- unico -->
+  <g stroke="currentColor" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- u -->
+    <path d="M12 28 L12 62 C12 76 22 80 30 80 C38 80 48 76 48 62 L48 28"/>
+    <!-- n -->
+    <path d="M58 80 L58 48 C58 34 68 28 76 28 C84 28 94 34 94 48 L94 80"/>
+    <!-- i dot -->
+    <circle cx="106" cy="22" r="3.5" fill="currentColor" stroke="none"/>
+    <!-- i line -->
+    <line x1="106" y1="34" x2="106" y2="80"/>
+    <!-- c -->
+    <path d="M140 40 C134 30 124 28 118 30 C110 34 108 44 108 54 C108 64 110 74 118 78 C124 80 134 78 140 68"/>
+    <!-- o -->
+    <ellipse cx="160" cy="54" rx="20" ry="26"/>
+  </g>
+  <!-- TRAVEL -->
+  <text x="93" y="98" text-anchor="middle" fill="currentColor" class="logo-text" font-size="11" letter-spacing="6" font-weight="300">TRAVEL</text>
+</svg>

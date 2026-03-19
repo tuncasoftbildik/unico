@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Lock } from 'lucide-react'
 import { toast } from 'sonner'
+import Image from 'next/image'
 
 export function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
   const [password, setPassword] = useState('')
@@ -30,17 +31,20 @@ export function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4">
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#BE1E2D' }}>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-amber-500 rounded-2xl mb-4">
-            <span className="text-2xl font-black text-white">U</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">UNICO</h1>
-          <p className="text-slate-400 mt-1">Rezervasyon Paneli</p>
+          <Image
+            src="/logo.svg"
+            alt="UNICO Travel"
+            width={180}
+            height={80}
+            className="mx-auto mb-2 invert"
+            priority
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white/95 backdrop-blur rounded-2xl shadow-xl p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Panel Şifresi</label>
             <div className="relative">
@@ -52,7 +56,8 @@ export function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
                 required
                 autoFocus
                 placeholder="Şifrenizi girin"
-                className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+                style={{ '--tw-ring-color': '#BE1E2D' } as React.CSSProperties}
               />
             </div>
           </div>
@@ -60,7 +65,8 @@ export function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
           <button
             type="submit"
             disabled={loading || !password}
-            className="w-full bg-amber-500 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-amber-600 transition disabled:opacity-50"
+            className="w-full text-white py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50 hover:opacity-90"
+            style={{ background: '#BE1E2D' }}
           >
             {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
           </button>

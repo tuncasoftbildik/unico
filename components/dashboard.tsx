@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
-import { Calendar, MapPin, ChevronLeft, ChevronRight, LogOut, Sun, Sunrise, Loader2 } from 'lucide-react'
+import { Calendar, MapPin, ChevronLeft, ChevronRight, LogOut, Sun, Sunrise, Loader2, RefreshCw } from 'lucide-react'
+import Image from 'next/image'
 import type { Reservation } from '@/lib/types'
 import { ReservationDetail } from './reservation-detail'
+
+const BRAND = '#BE1E2D'
 
 function toDateStr(d: Date): string {
   const year = d.getFullYear()
@@ -93,11 +96,15 @@ function MiniCalendar({ selectedDate, onSelect, onClose }: {
                 onClick={() => { onSelect(dateStr); onClose() }}
                 className={`text-sm py-1.5 rounded-lg transition ${
                   isSelected
-                    ? 'bg-amber-500 text-white font-semibold'
+                    ? 'text-white font-semibold'
                     : isToday
-                      ? 'bg-amber-50 text-amber-700 font-medium'
+                      ? 'font-medium'
                       : 'text-slate-700 hover:bg-slate-100'
                 }`}
+                style={
+                  isSelected ? { background: BRAND } :
+                  isToday ? { color: BRAND, background: '#fef2f2' } : undefined
+                }
               >
                 {day}
               </button>
@@ -117,9 +124,12 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [cities, setCities] = useState<Record<string, Reservation[]>>({})
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
+  const [lastSync, setLastSync] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
+  const [needsSync, setNeedsSync] = useState(false)
 
   const fetchReservations = useCallback(async (date: string) => {
     setLoading(true)
@@ -141,12 +151,49 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
       const data = await res.json()
       setCities(data.cities)
       setTotal(data.total)
+      setLastSync(data.lastSync)
+
+      if (!data.lastSync) {
+        setNeedsSync(true)
+      }
     } catch {
       setError('Sunucuya bağlanılamadı.')
     }
 
     setLoading(false)
   }, [onLogout])
+
+  useEffect(() => {
+    if (needsSync && !syncing) {
+      setNeedsSync(false)
+      handleSync()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsSync])
+
+  async function handleSync(force = false) {
+    setSyncing(true)
+    toast.info('Mailler okunuyor... Bu biraz sürebilir.')
+
+    try {
+      const res = await fetch(`/api/sync${force ? '?force=true' : ''}`, { method: 'POST' })
+      const data = await res.json()
+
+      if (!res.ok) {
+        toast.error(data.error || 'Senkronizasyon başarısız.')
+        setSyncing(false)
+        return
+      }
+
+      toast.success(`${data.synced} yeni rezervasyon eklendi. Toplam: ${data.total}`)
+      setLastSync(data.syncedAt)
+      await fetchReservations(selectedDate)
+    } catch {
+      toast.error('Senkronizasyon başarısız.')
+    }
+
+    setSyncing(false)
+  }
 
   useEffect(() => {
     fetchReservations(selectedDate)
@@ -164,17 +211,31 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <header className="bg-white border-b sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center">
-              <span className="text-sm font-black text-white">U</span>
-            </div>
-            <span className="text-lg font-bold text-slate-900 tracking-tight">UNICO</span>
+        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
+          <Image
+            src="/logo.svg"
+            alt="UNICO Travel"
+            width={100}
+            height={40}
+            style={{ color: BRAND }}
+            priority
+          />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => handleSync()}
+              disabled={syncing}
+              className="flex items-center gap-1.5 text-sm transition disabled:opacity-50"
+              style={{ color: BRAND }}
+              title="Mailleri yeniden oku"
+            >
+              <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">{syncing ? 'Okunuyor...' : 'Güncelle'}</span>
+            </button>
+            <button onClick={handleLogout} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition">
+              <LogOut size={16} />
+              <span className="hidden sm:inline">Çıkış</span>
+            </button>
           </div>
-          <button onClick={handleLogout} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition">
-            <LogOut size={16} />
-            <span className="hidden sm:inline">Çıkış</span>
-          </button>
         </div>
       </header>
 
@@ -184,8 +245,9 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           <button
             onClick={() => setSelectedDate(todayStr())}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition ${
-              isToday ? 'bg-amber-500 text-white shadow-sm' : 'bg-white text-slate-700 border hover:bg-slate-50'
+              isToday ? 'text-white shadow-sm' : 'bg-white text-slate-700 border hover:bg-slate-50'
             }`}
+            style={isToday ? { background: BRAND } : undefined}
           >
             <Sun size={15} />
             Bugün
@@ -193,8 +255,9 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           <button
             onClick={() => setSelectedDate(tomorrowStr())}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition ${
-              isTomorrow ? 'bg-amber-500 text-white shadow-sm' : 'bg-white text-slate-700 border hover:bg-slate-50'
+              isTomorrow ? 'text-white shadow-sm' : 'bg-white text-slate-700 border hover:bg-slate-50'
             }`}
+            style={isTomorrow ? { background: BRAND } : undefined}
           >
             <Sunrise size={15} />
             Yarın
@@ -202,8 +265,9 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           <button
             onClick={() => setShowCalendar(true)}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition ${
-              !isToday && !isTomorrow ? 'bg-amber-500 text-white shadow-sm' : 'bg-white text-slate-700 border hover:bg-slate-50'
+              !isToday && !isTomorrow ? 'text-white shadow-sm' : 'bg-white text-slate-700 border hover:bg-slate-50'
             }`}
+            style={!isToday && !isTomorrow ? { background: BRAND } : undefined}
           >
             <Calendar size={15} />
             Takvim
@@ -220,13 +284,26 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
             <div className="text-right">
               <p className="text-sm text-slate-500">Toplam Transfer</p>
               {loading ? (
-                <Loader2 size={28} className="animate-spin text-amber-500 mt-1 ml-auto" />
+                <Loader2 size={28} className="animate-spin mt-1 ml-auto" style={{ color: BRAND }} />
               ) : (
-                <p className="text-3xl font-bold text-amber-500 mt-0.5">{total}</p>
+                <p className="text-3xl font-bold mt-0.5" style={{ color: BRAND }}>{total}</p>
               )}
             </div>
           </div>
+          {lastSync && (
+            <p className="text-xs text-slate-400 mt-2">
+              Son güncelleme: {new Date(lastSync).toLocaleString('tr-TR')}
+            </p>
+          )}
         </div>
+
+        {/* Syncing banner */}
+        {syncing && (
+          <div className="rounded-2xl p-4 flex items-center gap-3" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
+            <Loader2 size={20} className="animate-spin shrink-0" style={{ color: BRAND }} />
+            <p className="text-sm" style={{ color: '#991b1b' }}>Mailler okunuyor, bu işlem bir kaç dakika sürebilir...</p>
+          </div>
+        )}
 
         {/* Hata */}
         {error && (
@@ -245,8 +322,8 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="text-center">
-              <Loader2 size={32} className="animate-spin text-amber-500 mx-auto mb-3" />
-              <p className="text-sm text-slate-500">Mailler okunuyor...</p>
+              <Loader2 size={32} className="animate-spin mx-auto mb-3" style={{ color: BRAND }} />
+              <p className="text-sm text-slate-500">Yükleniyor...</p>
             </div>
           </div>
         ) : !error && total === 0 ? (
@@ -261,10 +338,10 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
                 {/* Şehir başlığı */}
                 <div className="px-5 py-3 bg-slate-50 border-b flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <MapPin size={16} className="text-amber-500" />
+                    <MapPin size={16} style={{ color: BRAND }} />
                     <span className="font-semibold text-slate-900">{city}</span>
                   </div>
-                  <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full text-white" style={{ background: BRAND }}>
                     {reservations.length} transfer
                   </span>
                 </div>
@@ -282,7 +359,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
                         <div className="flex items-center gap-3 min-w-0">
                           <span className={`w-2 h-2 rounded-full shrink-0 ${st.dot}`} />
                           <div className="min-w-0">
-                            <span className="text-sm font-mono font-semibold text-amber-600 block">
+                            <span className="text-sm font-mono font-semibold block" style={{ color: BRAND }}>
                               #{r.bookingId}
                             </span>
                             <span className="text-xs text-slate-500 block truncate">
