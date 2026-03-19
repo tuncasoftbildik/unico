@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# UNICO — Rezervasyon Paneli
 
-## Getting Started
+Şifre korumalı rezervasyon yönetim paneli. Tarihe ve şehre göre rezervasyonları görüntüleme, detay inceleme.
 
-First, run the development server:
+## Özellikler
+
+- Şifre ile giriş (cookie tabanlı oturum)
+- Bugün / Yarın hızlı filtre butonları
+- Takvimden gün seçimi
+- Şehir bazlı rezervasyon gruplandırma
+- Rezervasyon sayısı özeti
+- Rezervasyon numarasına tıklayarak detay görüntüleme (müşteri, otel, tarih, fiyat, notlar)
+
+## Tech Stack
+
+- **Framework:** Next.js 16, TypeScript
+- **UI:** Tailwind CSS, Lucide Icons, Sonner (toast)
+
+## Kurulum
 
 ```bash
+git clone https://github.com/tuncasoftbildik/unico.git
+cd unico
+npm install
+cp .env.local.example .env.local
+# .env.local dosyasını doldur
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Ortam Değişkenleri
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+APP_PASSWORD=your_password_here
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Yapı
 
-## Learn More
+```
+app/
+  page.tsx              # Ana sayfa (login → dashboard)
+  api/auth/             # Şifre doğrulama API
+  api/reservations/     # Rezervasyon listesi API
+components/
+  login-screen.tsx      # Giriş ekranı
+  dashboard.tsx         # Ana panel (tarih seçici + şehir grupları)
+  reservation-detail.tsx # Detay modal
+lib/
+  types.ts              # Tip tanımları
+  mock-data.ts          # Mock rezervasyon verileri
+```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+*Geliştirme aşamasında — v0.1*
