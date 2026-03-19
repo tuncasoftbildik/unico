@@ -2,16 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
-import { Calendar, MapPin, ChevronLeft, ChevronRight, LogOut, Sun, Sunrise } from 'lucide-react'
+import { Calendar, MapPin, ChevronLeft, ChevronRight, LogOut, Sun, Sunrise, Loader2 } from 'lucide-react'
 import type { Reservation } from '@/lib/types'
 import { ReservationDetail } from './reservation-detail'
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })
-}
-
 function toDateStr(d: Date): string {
-  return d.toISOString().split('T')[0]
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function todayStr(): string {
@@ -24,26 +23,37 @@ function tomorrowStr(): string {
   return toDateStr(d)
 }
 
-const statusConfig = {
-  confirmed: { label: 'Onaylı', dot: 'bg-emerald-500' },
-  pending: { label: 'Beklemede', dot: 'bg-amber-500' },
-  cancelled: { label: 'İptal', dot: 'bg-red-500' },
+function formatDateTR(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })
 }
 
-// Mini takvim bileşeni
+const typeConfig = {
+  new: { label: 'Yeni', dot: 'bg-emerald-500' },
+  cancelled: { label: 'İptal', dot: 'bg-red-500' },
+  updated: { label: 'Güncellendi', dot: 'bg-blue-500' },
+}
+
+// =============================================
+// Mini Takvim
+// =============================================
 function MiniCalendar({ selectedDate, onSelect, onClose }: {
   selectedDate: string
   onSelect: (date: string) => void
   onClose: () => void
 }) {
-  const [viewDate, setViewDate] = useState(() => new Date(selectedDate || todayStr()))
+  const [viewDate, setViewDate] = useState(() => {
+    const [y, m] = selectedDate.split('-').map(Number)
+    return new Date(y, m - 1, 1)
+  })
 
   const year = viewDate.getFullYear()
   const month = viewDate.getMonth()
 
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const offset = firstDay === 0 ? 6 : firstDay - 1 // Pazartesi başlangıç
+  const offset = firstDay === 0 ? 6 : firstDay - 1
 
   const days: (number | null)[] = []
   for (let i = 0; i < offset; i++) days.push(null)
@@ -54,7 +64,6 @@ function MiniCalendar({ selectedDate, onSelect, onClose }: {
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-xs" onClick={e => e.stopPropagation()}>
-        {/* Ay navigasyonu */}
         <div className="flex items-center justify-between mb-4">
           <button onClick={() => setViewDate(new Date(year, month - 1, 1))} className="p-1 hover:bg-slate-100 rounded-lg">
             <ChevronLeft size={18} className="text-slate-600" />
@@ -65,14 +74,12 @@ function MiniCalendar({ selectedDate, onSelect, onClose }: {
           </button>
         </div>
 
-        {/* Gün başlıkları */}
         <div className="grid grid-cols-7 gap-1 mb-1">
           {['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'].map(d => (
             <div key={d} className="text-center text-xs font-medium text-slate-400 py-1">{d}</div>
           ))}
         </div>
 
-        {/* Günler */}
         <div className="grid grid-cols-7 gap-1">
           {days.map((day, i) => {
             if (!day) return <div key={`e-${i}`} />
@@ -102,30 +109,42 @@ function MiniCalendar({ selectedDate, onSelect, onClose }: {
   )
 }
 
+// =============================================
+// Dashboard
+// =============================================
 export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [cities, setCities] = useState<Record<string, Reservation[]>>({})
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
 
   const fetchReservations = useCallback(async (date: string) => {
     setLoading(true)
-    const res = await fetch(`/api/reservations?date=${date}`)
-    if (!res.ok) {
-      if (res.status === 401) {
-        toast.error('Oturum süresi doldu.')
-        onLogout()
+    setError(null)
+
+    try {
+      const res = await fetch(`/api/reservations?date=${date}`)
+      if (!res.ok) {
+        if (res.status === 401) {
+          toast.error('Oturum süresi doldu.')
+          onLogout()
+          return
+        }
+        const data = await res.json()
+        setError(data.error || 'Bir hata oluştu.')
+        setLoading(false)
         return
       }
-      toast.error('Veriler yüklenemedi.')
-      setLoading(false)
-      return
+      const data = await res.json()
+      setCities(data.cities)
+      setTotal(data.total)
+    } catch {
+      setError('Sunucuya bağlanılamadı.')
     }
-    const data = await res.json()
-    setCities(data.cities)
-    setTotal(data.total)
+
     setLoading(false)
   }, [onLogout])
 
@@ -196,34 +215,46 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-slate-500">Seçili Tarih</p>
-              <p className="text-lg font-semibold text-slate-900 mt-0.5">{formatDate(selectedDate)}</p>
+              <p className="text-lg font-semibold text-slate-900 mt-0.5">{formatDateTR(selectedDate)}</p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-slate-500">Toplam Rezervasyon</p>
-              <p className="text-3xl font-bold text-amber-500 mt-0.5">{loading ? '—' : total}</p>
+              <p className="text-sm text-slate-500">Toplam Transfer</p>
+              {loading ? (
+                <Loader2 size={28} className="animate-spin text-amber-500 mt-1 ml-auto" />
+              ) : (
+                <p className="text-3xl font-bold text-amber-500 mt-0.5">{total}</p>
+              )}
             </div>
           </div>
         </div>
 
+        {/* Hata */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-center">
+            <p className="text-red-600 font-medium text-sm">{error}</p>
+            <button
+              onClick={() => fetchReservations(selectedDate)}
+              className="mt-2 text-sm text-red-500 underline hover:text-red-700"
+            >
+              Tekrar Dene
+            </button>
+          </div>
+        )}
+
         {/* Şehir Bazlı Rezervasyonlar */}
         {loading ? (
-          <div className="space-y-4">
-            {[1, 2].map(i => (
-              <div key={i} className="bg-white rounded-2xl border p-5 animate-pulse">
-                <div className="h-5 bg-slate-200 rounded w-32 mb-4" />
-                <div className="space-y-3">
-                  <div className="h-4 bg-slate-100 rounded w-full" />
-                  <div className="h-4 bg-slate-100 rounded w-3/4" />
-                </div>
-              </div>
-            ))}
+          <div className="flex items-center justify-center py-16">
+            <div className="text-center">
+              <Loader2 size={32} className="animate-spin text-amber-500 mx-auto mb-3" />
+              <p className="text-sm text-slate-500">Mailler okunuyor...</p>
+            </div>
           </div>
-        ) : total === 0 ? (
+        ) : !error && total === 0 ? (
           <div className="bg-white rounded-2xl border p-10 text-center">
             <Calendar size={40} className="mx-auto text-slate-300 mb-3" />
-            <p className="text-slate-500 font-medium">Bu tarihte rezervasyon bulunmuyor.</p>
+            <p className="text-slate-500 font-medium">Bu tarihte transfer bulunmuyor.</p>
           </div>
-        ) : (
+        ) : !error && (
           <div className="space-y-4">
             {Object.entries(cities).map(([city, reservations]) => (
               <div key={city} className="bg-white rounded-2xl border overflow-hidden">
@@ -234,14 +265,14 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
                     <span className="font-semibold text-slate-900">{city}</span>
                   </div>
                   <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
-                    {reservations.length} rezervasyon
+                    {reservations.length} transfer
                   </span>
                 </div>
 
                 {/* Rezervasyon listesi */}
                 <div className="divide-y">
                   {reservations.map(r => {
-                    const st = statusConfig[r.status]
+                    const st = typeConfig[r.type]
                     return (
                       <button
                         key={r.id}
@@ -252,20 +283,24 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
                           <span className={`w-2 h-2 rounded-full shrink-0 ${st.dot}`} />
                           <div className="min-w-0">
                             <span className="text-sm font-mono font-semibold text-amber-600 block">
-                              {r.reservationNo}
+                              #{r.bookingId}
                             </span>
                             <span className="text-xs text-slate-500 block truncate">
-                              {r.customerName} · {r.hotel}
+                              {r.category} · {r.passengers} yolcu
+                              {r.flightNumber && ` · ${r.flightNumber}`}
                             </span>
                           </div>
                         </div>
                         <div className="text-right shrink-0 ml-3">
-                          <span className="text-sm font-semibold text-slate-900 block">
-                            {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: r.currency, minimumFractionDigits: 0 }).format(r.totalPrice)}
-                          </span>
-                          <span className={`text-xs ${st.dot === 'bg-emerald-500' ? 'text-emerald-600' : st.dot === 'bg-amber-500' ? 'text-amber-600' : 'text-red-500'}`}>
+                          <span className={`text-xs font-medium ${
+                            r.type === 'new' ? 'text-emerald-600' :
+                            r.type === 'cancelled' ? 'text-red-500' : 'text-blue-600'
+                          }`}>
                             {st.label}
                           </span>
+                          {r.pickupTime && (
+                            <span className="text-xs text-slate-400 block">{r.pickupTime}</span>
+                          )}
                         </div>
                       </button>
                     )

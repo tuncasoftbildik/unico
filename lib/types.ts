@@ -1,18 +1,21 @@
 export interface Reservation {
   id: string
-  reservationNo: string
-  customerName: string
-  customerEmail: string
-  customerPhone: string
-  city: string
-  hotel: string
-  checkIn: string   // YYYY-MM-DD
-  checkOut: string  // YYYY-MM-DD
-  guests: number
-  roomType: string
-  status: 'confirmed' | 'pending' | 'cancelled'
-  totalPrice: number
-  currency: string
-  notes?: string
-  createdAt: string
+  bookingId: string
+  type: 'new' | 'cancelled' | 'updated'
+  category: string
+  passengers: number
+  pickupLocation: string
+  dropoffLocation: string
+  flightNumber?: string
+  flightDate?: string       // "Friday, 20 March 2026" gibi orijinal format
+  flightDateISO?: string    // YYYY-MM-DD
+  pickupDate?: string       // Uçuşsuz transferler için
+  pickupDateISO?: string    // YYYY-MM-DD
+  pickupTime?: string       // "12:30" gibi
+  originAirport?: string
+  distance?: string
+  city: string              // Parse edilen şehir
+  emailDate: string         // Mailin geldiği tarih ISO
+  subject: string
+  notes?: string            // Update maillerdeki notlar
 }

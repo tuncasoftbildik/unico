@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { mockReservations } from '@/lib/mock-data'
+import { fetchReservations } from '@/lib/imap'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   // Auth kontrolü
@@ -11,23 +13,27 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const date = searchParams.get('date') // YYYY-MM-DD
 
-  let results = [...mockReservations]
-
-  // Tarihe göre filtrele (check-in tarihi)
-  if (date) {
-    results = results.filter(r => r.checkIn === date)
+  if (!date || date === 'check') {
+    return NextResponse.json({ total: 0, date: 'none', cities: {} })
   }
 
-  // Şehre göre grupla
-  const cityGroups: Record<string, typeof results> = {}
-  for (const r of results) {
-    if (!cityGroups[r.city]) cityGroups[r.city] = []
-    cityGroups[r.city].push(r)
-  }
+  try {
+    const reservations = await fetchReservations({ date })
 
-  return NextResponse.json({
-    total: results.length,
-    date: date || 'all',
-    cities: cityGroups,
-  })
+    // Şehre göre grupla
+    const cityGroups: Record<string, typeof reservations> = {}
+    for (const r of reservations) {
+      if (!cityGroups[r.city]) cityGroups[r.city] = []
+      cityGroups[r.city].push(r)
+    }
+
+    return NextResponse.json({
+      total: reservations.length,
+      date,
+      cities: cityGroups,
+    })
+  } catch (err) {
+    console.error('[API] Rezervasyon çekme hatası:', err)
+    return NextResponse.json({ error: 'Mail sunucusuna bağlanılamadı.' }, { status: 500 })
+  }
 }
