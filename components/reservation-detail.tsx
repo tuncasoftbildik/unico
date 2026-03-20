@@ -1,7 +1,9 @@
 'use client'
 
 import type { Reservation } from '@/lib/types'
-import { X, MapPin, Plane, Users, Car, Navigation, Clock, FileText, ArrowRight } from 'lucide-react'
+import { X, MapPin, Plane, Users, Car, Navigation, Clock, FileText, ArrowRight, User, Phone, CreditCard } from 'lucide-react'
+
+const BRAND = '#BE1E2D'
 
 const typeConfig = {
   new: { label: 'Yeni', color: 'bg-emerald-100 text-emerald-700' },
@@ -34,6 +36,33 @@ export function ReservationDetail({ reservation, onClose }: { reservation: Reser
 
         {/* Body */}
         <div className="p-6 space-y-5">
+          {/* Yolcu Bilgileri */}
+          {reservation.passengerName && (
+            <div>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Yolcu Bilgileri</h3>
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-3">
+                  <User size={16} style={{ color: BRAND }} />
+                  <span className="text-sm font-semibold text-slate-900">{reservation.passengerName}</span>
+                </div>
+                {reservation.passengerPhone && (
+                  <div className="flex items-center gap-3">
+                    <Phone size={16} className="text-slate-400" />
+                    <a href={`tel:${reservation.passengerPhone}`} className="text-sm text-blue-600 hover:underline">
+                      {reservation.passengerPhone}
+                    </a>
+                  </div>
+                )}
+                {reservation.journeyCharge && (
+                  <div className="flex items-center gap-3">
+                    <CreditCard size={16} className="text-slate-400" />
+                    <span className="text-sm text-slate-600">{reservation.journeyCharge}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Transfer Rotası */}
           <div>
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Transfer Rotası</h3>
@@ -93,7 +122,7 @@ export function ReservationDetail({ reservation, onClose }: { reservation: Reser
                 <Clock size={16} className="text-slate-400" />
                 <span className="text-sm text-slate-900 font-medium">{transferDate}</span>
                 {reservation.pickupTime && (
-                  <span className="text-sm text-amber-600 font-medium">· {reservation.pickupTime}</span>
+                  <span className="text-sm font-medium" style={{ color: BRAND }}>· {reservation.pickupTime}</span>
                 )}
               </div>
               {reservation.flightNumber && (
@@ -126,7 +155,8 @@ export function ReservationDetail({ reservation, onClose }: { reservation: Reser
             href={`https://portal.taxis.booking.com/bookings/rides?bookingId=${reservation.bookingId}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full bg-blue-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700 transition"
+            className="flex items-center justify-center gap-2 w-full text-white py-2.5 rounded-xl text-sm font-medium hover:opacity-90 transition"
+            style={{ background: BRAND }}
           >
             Booking.com&apos;da Görüntüle
             <ArrowRight size={14} />

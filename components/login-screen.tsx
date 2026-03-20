@@ -31,20 +31,20 @@ export function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#BE1E2D' }}>
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
+    <div className="min-h-screen flex items-center justify-center px-4 animate-fadeIn" style={{ background: '#BE1E2D' }}>
+      <div className="w-full max-w-sm animate-scaleIn">
+        <div className="text-center mb-8 animate-slideInLeft">
           <Image
-            src="/logo.svg"
+            src="/logo.png"
             alt="UNICO Travel"
             width={180}
             height={80}
-            className="mx-auto mb-2 invert"
+            className="mx-auto mb-2"
             priority
           />
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white/95 backdrop-blur rounded-2xl shadow-xl p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white/95 backdrop-blur rounded-2xl shadow-xl p-6 space-y-4 animate-slideInRight">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Panel Şifresi</label>
             <div className="relative">
@@ -65,7 +65,7 @@ export function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
           <button
             type="submit"
             disabled={loading || !password}
-            className="w-full text-white py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50 hover:opacity-90"
+            className="w-full text-white py-2.5 rounded-xl text-sm font-semibold transition-fast disabled:opacity-50 hover:opacity-90 transform hover:scale-[1.02] active:scale-[0.98]"
             style={{ background: '#BE1E2D' }}
           >
             {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}

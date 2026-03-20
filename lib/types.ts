@@ -1,5 +1,4 @@
 export interface Reservation {
-  id: string
   bookingId: string
   type: 'new' | 'cancelled' | 'updated'
   category: string
@@ -18,4 +17,8 @@ export interface Reservation {
   emailDate: string         // Mailin geldiği tarih ISO
   subject: string
   notes?: string            // Update maillerdeki notlar
+  passengerName?: string    // Yolcu adı (HTML'den)
+  passengerPhone?: string   // Yolcu telefonu (HTML'den)
+  driverSign?: string       // Şoför tabelası (HTML'den)
+  journeyCharge?: string    // Ücret (HTML'den)
 }

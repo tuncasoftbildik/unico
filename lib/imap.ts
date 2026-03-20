@@ -7,9 +7,10 @@ import { ImapFlow } from 'imapflow'
 import { simpleParser, ParsedMail } from 'mailparser'
 import type { Reservation } from './types'
 import { mergeReservations, saveSyncMeta, getSyncMeta } from './cache'
+import { getDb } from './db'
 
 function getClient() {
-  return new ImapFlow({
+  const client = new ImapFlow({
     host: process.env.IMAP_HOST || 'imap.gmail.com',
     port: Number(process.env.IMAP_PORT) || 993,
     secure: true,
@@ -18,7 +19,13 @@ function getClient() {
       pass: process.env.IMAP_PASS || '',
     },
     logger: false,
+    socketTimeout: 5 * 60 * 1000,
   })
+  // Unhandled error event'lerini yakala (process crash önlemi)
+  client.on('error', (err: Error) => {
+    console.error('[IMAP] Connection error:', err.message)
+  })
+  return client
 }
 
 const monthMap: Record<string, string> = {
@@ -106,113 +113,189 @@ function parseMailText(text: string): Partial<Reservation> {
 }
 
 /**
+ * HTML'den Passenger ve Payment bölümlerini parse et.
+ * Booking.com mailleri bu bilgileri sadece HTML'de gönderiyor.
+ */
+function parseMailHtml(html: string): Partial<Reservation> {
+  const result: Partial<Reservation> = {}
+
+  // Helper: HTML tag'lerini temizle ve &nbsp; → boşluk
+  const clean = (s: string) => s.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim()
+
+  // Name: <td>...</td> pattern — Passenger bölümündeki Name satırı
+  const nameMatch = html.match(/Name:<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>/)
+  if (nameMatch) result.passengerName = clean(nameMatch[1])
+
+  // Mobile number:
+  const phoneMatch = html.match(/Mobile number:<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>/)
+  if (phoneMatch) result.passengerPhone = clean(phoneMatch[1])
+
+  // Driver's sign will read:
+  const signMatch = html.match(/Driver's sign will read:<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>/)
+  if (signMatch) result.driverSign = clean(signMatch[1])
+
+  // Journey charge:
+  const chargeMatch = html.match(/Journey charge:<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>/)
+  if (chargeMatch) result.journeyCharge = clean(chargeMatch[1])
+
+  return result
+}
+
+/**
  * IMAP'tan mailleri sync et ve cache'e yaz.
  * lastUid'den sonraki yeni mailleri okur (incremental sync).
  * force=true ise tümünü baştan okur.
  */
 export async function syncFromImap(force = false): Promise<{ synced: number; total: number }> {
-  const client = getClient()
-  const newReservations: Reservation[] = []
-
   const meta = force ? null : await getSyncMeta()
   let maxUid = 0
+  let syncedCount = 0
 
-  try {
-    await client.connect()
-    const lock = await client.getMailboxLock('INBOX')
+  // 1) UID listesini al (3 deneme)
+  let uids: number[] = []
 
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const searchClient = getClient()
     try {
-      const mailbox = client.mailbox
-      if (!mailbox || mailbox.exists === 0) return { synced: 0, total: 0 }
+      await searchClient.connect()
+      const lock = await searchClient.getMailboxLock('INBOX')
+      try {
+        const mailbox = searchClient.mailbox
+        if (!mailbox || mailbox.exists === 0) return { synced: 0, total: 0 }
 
-      // Booking.com maillerini ara
-      const searchCriteria: Record<string, unknown> = {
-        from: 'booking.com',
+        const searchCriteria: Record<string, unknown> = { from: 'booking.com' }
+        if (meta?.lastUid) {
+          searchCriteria.uid = `${meta.lastUid + 1}:*`
+        }
+        const searchResult = await searchClient.search(searchCriteria, { uid: true })
+        uids = Array.isArray(searchResult) ? searchResult : []
+      } finally {
+        lock.release()
       }
-
-      // Incremental: sadece son sync'ten sonraki UID'leri oku
-      if (meta?.lastUid) {
-        searchCriteria.uid = `${meta.lastUid + 1}:*`
-      }
-
-      const searchResult = await client.search(searchCriteria, { uid: true })
-      const uids = Array.isArray(searchResult) ? searchResult : []
-
-      if (uids.length === 0) {
-        await saveSyncMeta({
-          lastSync: new Date().toISOString(),
-          totalEmails: meta?.totalEmails || 0,
-          lastUid: meta?.lastUid || 0,
-        })
-        return { synced: 0, total: meta?.totalEmails || 0 }
-      }
-
-      console.log(`[Sync] ${uids.length} yeni mail okunacak...`)
-
-      const uidRange = uids.join(',')
-
-      for await (const msg of client.fetch(uidRange, { envelope: true, source: true, uid: true }, { uid: true })) {
-        const subject = msg.envelope?.subject || ''
-        const mailType = getMailType(subject)
-        if (!mailType) continue
-
-        const bookingId = extractBookingId(subject)
-        if (!bookingId) continue
-
-        if (!msg.source) continue
-        const parsed = await simpleParser(msg.source) as ParsedMail
-        const text = parsed.text || ''
-        const fields = parseMailText(text)
-
-        const pickup = fields.pickupLocation || ''
-        const dropoff = fields.dropoffLocation || ''
-        const city = extractCity(pickup, dropoff)
-
-        if (msg.uid > maxUid) maxUid = msg.uid
-
-        newReservations.push({
-          id: `${bookingId}-${mailType}`,
-          bookingId: fields.bookingId || bookingId,
-          type: mailType,
-          category: fields.category || '-',
-          passengers: fields.passengers || 1,
-          pickupLocation: pickup,
-          dropoffLocation: dropoff,
-          flightNumber: fields.flightNumber,
-          flightDate: fields.flightDate,
-          flightDateISO: fields.flightDateISO,
-          pickupDate: fields.pickupDate,
-          pickupDateISO: fields.pickupDateISO,
-          pickupTime: fields.pickupTime,
-          originAirport: fields.originAirport,
-          distance: fields.distance,
-          city,
-          emailDate: msg.envelope?.date?.toISOString() || '',
-          subject,
-          notes: fields.notes,
-        })
-      }
-    } finally {
-      lock.release()
+      await searchClient.logout()
+      break
+    } catch (err) {
+      console.error(`[IMAP] Search hatası (deneme ${attempt}/3):`, (err as Error).message)
+      try { await searchClient.logout() } catch { /* ignore */ }
+      if (attempt === 3) throw err
+      await new Promise(r => setTimeout(r, 3000 * attempt))
     }
-
-    await client.logout()
-  } catch (err) {
-    console.error('[IMAP] Hata:', err)
-    throw err
   }
 
-  // Cache'e merge et
-  const merged = await mergeReservations(newReservations)
+  if (uids.length === 0) {
+    await saveSyncMeta({
+      lastSync: new Date().toISOString(),
+      totalEmails: meta?.totalEmails || 0,
+      lastUid: meta?.lastUid || 0,
+    })
+    return { synced: 0, total: meta?.totalEmails || 0 }
+  }
 
-  // Sync meta güncelle
+  console.log(`[Sync] ${uids.length} yeni mail okunacak...`)
+
+  // 2) Her chunk için yeni bağlantı aç → oku → DB'ye yaz → kapat
+  const CHUNK_SIZE = 200
+  const totalChunks = Math.ceil(uids.length / CHUNK_SIZE)
+
+  for (let c = 0; c < uids.length; c += CHUNK_SIZE) {
+    const uidChunk = uids.slice(c, c + CHUNK_SIZE)
+    const chunkNum = Math.floor(c / CHUNK_SIZE) + 1
+    console.log(`[Sync] Chunk ${chunkNum}/${totalChunks} (${uidChunk.length} mail)...`)
+
+    const chunkReservations: Reservation[] = []
+    const chunkClient = getClient()
+
+    try {
+      await chunkClient.connect()
+      const lock = await chunkClient.getMailboxLock('INBOX')
+      try {
+        const uidRange = uidChunk.join(',')
+        for await (const msg of chunkClient.fetch(uidRange, { envelope: true, source: true, uid: true }, { uid: true })) {
+          const subject = msg.envelope?.subject || ''
+          const mailType = getMailType(subject)
+          if (!mailType) continue
+
+          const bookingId = extractBookingId(subject)
+          if (!bookingId) continue
+
+          if (!msg.source) continue
+          const parsed = await simpleParser(msg.source) as ParsedMail
+          const text = parsed.text || ''
+          const html = (parsed.html || '') as string
+          const fields = parseMailText(text)
+          const htmlFields = parseMailHtml(html)
+
+          const pickup = fields.pickupLocation || ''
+          const dropoff = fields.dropoffLocation || ''
+          const city = extractCity(pickup, dropoff)
+
+          if (msg.uid > maxUid) maxUid = msg.uid
+
+          chunkReservations.push({
+            bookingId: fields.bookingId || bookingId,
+            type: mailType,
+            category: fields.category || '-',
+            passengers: fields.passengers || 1,
+            pickupLocation: pickup,
+            dropoffLocation: dropoff,
+            flightNumber: fields.flightNumber,
+            flightDate: fields.flightDate,
+            flightDateISO: fields.flightDateISO,
+            pickupDate: fields.pickupDate,
+            pickupDateISO: fields.pickupDateISO,
+            pickupTime: fields.pickupTime,
+            originAirport: fields.originAirport,
+            distance: fields.distance,
+            city,
+            emailDate: msg.envelope?.date?.toISOString() || '',
+            subject,
+            notes: fields.notes,
+            passengerName: htmlFields.passengerName,
+            passengerPhone: htmlFields.passengerPhone,
+            driverSign: htmlFields.driverSign,
+            journeyCharge: htmlFields.journeyCharge,
+          })
+        }
+      } finally {
+        lock.release()
+      }
+      await chunkClient.logout()
+    } catch (err) {
+      console.error(`[IMAP] Chunk ${chunkNum} hatası:`, (err as Error).message)
+      // Hata olsa bile okunan verileri kaydet, devam et
+      try { await chunkClient.logout() } catch { /* ignore */ }
+    }
+
+    // Chunk'ı DB'ye yaz (3 deneme, retry ile)
+    if (chunkReservations.length > 0) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await mergeReservations(chunkReservations)
+          syncedCount += chunkReservations.length
+          console.log(`[Sync] ${syncedCount} toplam yazıldı`)
+          break
+        } catch (dbErr) {
+          console.error(`[Sync] DB yazma hatası (deneme ${attempt}/3):`, (dbErr as Error).message)
+          if (attempt === 3) {
+            console.error(`[Sync] Chunk ${chunkNum} atlanıyor.`)
+          } else {
+            await new Promise(r => setTimeout(r, 2000 * attempt))
+          }
+        }
+      }
+    }
+  }
+
+  const countResult = await getDb().execute('SELECT COUNT(*) as cnt FROM reservations')
+  const totalCount = Number((countResult.rows[0] as unknown as Record<string, number>).cnt)
+
   await saveSyncMeta({
     lastSync: new Date().toISOString(),
-    totalEmails: merged.length,
+    totalEmails: totalCount,
     lastUid: maxUid > 0 ? maxUid : (meta?.lastUid || 0),
   })
 
-  console.log(`[Sync] ${newReservations.length} yeni rezervasyon eklendi. Toplam: ${merged.length}`)
+  console.log(`[Sync] Tamamlandı! ${syncedCount} rezervasyon eklendi. Toplam: ${totalCount}`)
 
-  return { synced: newReservations.length, total: merged.length }
+  return { synced: syncedCount, total: totalCount }
 }
