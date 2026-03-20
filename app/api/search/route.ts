@@ -19,14 +19,19 @@ export async function GET(request: NextRequest) {
   const results = await searchReservations(q)
 
   const cityGroups: Record<string, typeof results> = {}
+  let cancelledCount = 0
+  
   for (const r of results) {
     if (!cityGroups[r.city]) cityGroups[r.city] = []
     cityGroups[r.city].push(r)
+    if (r.type === 'cancelled') cancelledCount++
   }
 
   return NextResponse.json({
     results,
     cities: cityGroups,
     total: results.length,
+    normalCount: results.length - cancelledCount,
+    cancelledCount,
   })
 }

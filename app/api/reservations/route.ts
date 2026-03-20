@@ -19,17 +19,22 @@ export async function GET(request: NextRequest) {
 
   const reservations = await filterByDate(date)
 
-  // Şehre göre grupla
+  // Şehre göre grupla ve iptal sayısını hesapla
   const cityGroups: Record<string, typeof reservations> = {}
+  let cancelledCount = 0
+  
   for (const r of reservations) {
     if (!cityGroups[r.city]) cityGroups[r.city] = []
     cityGroups[r.city].push(r)
+    if (r.type === 'cancelled') cancelledCount++
   }
 
   const meta = await getSyncMeta()
 
   return NextResponse.json({
     total: reservations.length,
+    normalCount: reservations.length - cancelledCount,
+    cancelledCount,
     date,
     cities: cityGroups,
     lastSync: meta?.lastSync || null,

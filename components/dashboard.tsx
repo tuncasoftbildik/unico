@@ -319,6 +319,8 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [cities, setCities] = useState<Record<string, Reservation[]>>({})
   const [total, setTotal] = useState(0)
+  const [normalCount, setNormalCount] = useState(0)
+  const [cancelledCount, setCancelledCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(null)
@@ -326,6 +328,12 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [showCalendar, setShowCalendar] = useState(false)
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
   const [needsSync, setNeedsSync] = useState(false)
+  const [expandedCities, setExpandedCities] = useState<Set<string>>(new Set())
+  const [initialLoading, setInitialLoading] = useState(true)
+  
+  // Dark mode state: 'light' | 'dark' | 'system'
+  const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>('system')
+  const [isDark, setIsDark] = useState(false)
 
   // Arama
   const [searchQuery, setSearchQuery] = useState('')
@@ -352,7 +360,11 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
         setError(data.error || 'Bir hata oluştu.'); setLoading(false); return
       }
       const data = await res.json()
-      setCities(data.cities); setTotal(data.total); setLastSync(data.lastSync)
+      setCities(data.cities)
+      setTotal(data.total)
+      setNormalCount(data.normalCount || 0)
+      setCancelledCount(data.cancelledCount || 0)
+      setLastSync(data.lastSync)
       if (!data.lastSync) setNeedsSync(true)
     } catch { setError('Sunucuya bağlanılamadı.') }
     setLoading(false)
@@ -367,10 +379,58 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
     setLoadingStats(false)
   }
 
-  // İlk yüklemede stats + reservations
+  // Dark mode initialization
   useEffect(() => {
-    loadStats()
-    fetchReservations(selectedDate)
+    // localStorage'dan tema tercihini oku
+    const savedTheme = localStorage.getItem('unico-theme') as 'light' | 'dark' | 'system' | null
+    if (savedTheme) {
+      setThemeMode(savedTheme)
+    }
+  }, [])
+
+  // Sistem temasını dinle ve dark mode'u güncelle
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    
+    const updateDarkMode = () => {
+      if (themeMode === 'system') {
+        setIsDark(mediaQuery.matches)
+      } else {
+        setIsDark(themeMode === 'dark')
+      }
+    }
+    
+    updateDarkMode()
+    mediaQuery.addEventListener('change', updateDarkMode)
+    
+    return () => mediaQuery.removeEventListener('change', updateDarkMode)
+  }, [themeMode])
+
+  const toggleTheme = () => {
+    const modes: Array<'light' | 'dark' | 'system'> = ['light', 'system', 'dark']
+    const currentIndex = modes.indexOf(themeMode)
+    const nextMode = modes[(currentIndex + 1) % modes.length]
+    setThemeMode(nextMode)
+    localStorage.setItem('unico-theme', nextMode)
+  }
+
+  // İlk yüklemede stats + reservations + bildirim izni
+  useEffect(() => {
+    const loadInitialData = async () => {
+      await Promise.all([loadStats(), fetchReservations(selectedDate)])
+      setInitialLoading(false)
+      
+      // Otomatik bildirim izni iste
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        const permission = await Notification.requestPermission()
+        if (permission === 'granted') {
+          setNotificationsEnabled(true)
+        }
+      } else if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        setNotificationsEnabled(true)
+      }
+    }
+    loadInitialData()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -425,7 +485,13 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
     searchTimeout.current = setTimeout(async () => {
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`)
-        if (res.ok) { const data = await res.json(); setSearchResults(data.cities); setSearchTotal(data.total) }
+        if (res.ok) {
+          const data = await res.json()
+          setSearchResults(data.cities)
+          setSearchTotal(data.total)
+          setNormalCount(data.normalCount || 0)
+          setCancelledCount(data.cancelledCount || 0)
+        }
       } catch { /* sessiz */ }
       setSearching(false)
     }, 300)
@@ -446,17 +512,45 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   async function handleLogout() { await fetch('/api/auth', { method: 'DELETE' }); onLogout() }
 
+  const toggleCity = (city: string) => {
+    setExpandedCities(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(city)) {
+        newSet.delete(city)
+      } else {
+        newSet.add(city)
+      }
+      return newSet
+    })
+  }
+
   const isToday = selectedDate === todayStr()
   const isTomorrow = selectedDate === tomorrowStr()
   const isSearching = searchQuery.length >= 2
   const displayCities = isSearching ? (searchResults || {}) : cities
   const displayTotal = isSearching ? searchTotal : total
 
+  // İlk yükleme ekranı
+  if (initialLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="relative w-24 h-24 mx-auto mb-6">
+            <div className="absolute inset-0 rounded-full border-4 border-slate-200"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#BE1E2D] animate-spin"></div>
+          </div>
+          <h2 className="text-xl font-semibold text-slate-700 mb-2">UNICO Travel</h2>
+          <p className="text-sm text-slate-500">Veriler yükleniyor...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <header className="bg-white border-b sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between py-2">
             <Image src="/logo.png" alt="UNICO Travel" width={100} height={40} priority />
             <div className="flex items-center gap-2">
@@ -501,7 +595,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 py-6">
         {/* ===== GENEL BAKIŞ TAB ===== */}
         {activeTab === 'overview' && (
           <OverviewTab stats={stats} loading={loadingStats && !stats} />
@@ -564,7 +658,24 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <div className="text-right">
                     <p className="text-sm text-slate-500">Toplam Transfer</p>
                     {loading ? <Loader2 size={28} className="animate-spin mt-1 ml-auto" style={{ color: BRAND }} />
-                      : <p className="text-3xl font-bold mt-0.5" style={{ color: BRAND }}>{total}</p>}
+                      : (
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <div className="text-right">
+                            <p className="text-lg font-semibold text-slate-600">{normalCount}</p>
+                            <p className="text-[10px] text-slate-400">Normal</p>
+                          </div>
+                          <span className="text-slate-300">+</span>
+                          <div className="text-right">
+                            <p className="text-lg font-semibold text-red-500">{cancelledCount}</p>
+                            <p className="text-[10px] text-red-400">İptal</p>
+                          </div>
+                          <span className="text-slate-300">=</span>
+                          <div className="text-right">
+                            <p className="text-3xl font-bold" style={{ color: BRAND }}>{total}</p>
+                            <p className="text-[10px] text-slate-400">Toplam</p>
+                          </div>
+                        </div>
+                      )}
                   </div>
                 </div>
                 {lastSync && (
@@ -605,18 +716,30 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
               </div>
             ) : !error && displayTotal > 0 && (
               <div className="space-y-4 animate-fadeIn">
-                {Object.entries(displayCities).map(([city, reservations]) => (
-                  <div key={city} className="bg-white rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-md">
-                    <div className="px-5 py-3 bg-slate-50 border-b flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <MapPin size={16} style={{ color: BRAND }} />
-                        <span className="font-semibold text-slate-900">{city}</span>
-                      </div>
-                      <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full text-white" style={{ background: BRAND }}>
-                        {reservations.length} transfer
-                      </span>
-                    </div>
-                    <div className="divide-y">
+                {Object.entries(displayCities).map(([city, reservations]) => {
+                  const isExpanded = expandedCities.has(city)
+                  return (
+                    <div key={city} className="bg-white rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-md">
+                      <button
+                        onClick={() => toggleCity(city)}
+                        className="w-full px-5 py-3 bg-slate-50 border-b flex items-center justify-between hover:bg-slate-100 transition-fast"
+                      >
+                        <div className="flex items-center gap-2">
+                          <MapPin size={16} style={{ color: BRAND }} />
+                          <span className="font-semibold text-slate-900">{city}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full text-white" style={{ background: BRAND }}>
+                            {reservations.length} transfer
+                          </span>
+                          <ChevronRight
+                            size={18}
+                            className={`text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
+                          />
+                        </div>
+                      </button>
+                      {isExpanded && (
+                        <div className="divide-y">
                       {reservations.map(r => {
                         const st = typeConfig[r.type]
                         const transferDate = r.flightDateISO || r.pickupDateISO
@@ -641,10 +764,12 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
                             </div>
                           </button>
                         )
-                      })}
+                          })}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
