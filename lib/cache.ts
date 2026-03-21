@@ -242,6 +242,8 @@ export interface StatsData {
   monthUpdated: number
   todayRevenue: number
   monthRevenue: number
+  todayCityRevenue: { city: string; revenue: number }[]
+  monthCityRevenue: { city: string; revenue: number }[]
   cityBreakdown: { city: string; count: number }[]
   cityMonthly: CityMonthly[]
   dailyCounts: { date: string; count: number }[]
@@ -342,9 +344,23 @@ export async function getStats(): Promise<StatsData> {
         FROM reservations WHERE journey_charge IS NOT NULL AND journey_charge != ''`,
       args: [todayISO, monthStartISO, monthEndISO],
     },
+    // 7) Bugün şehir bazlı ciro
+    {
+      sql: `SELECT city, SUM(CAST(REPLACE(journey_charge, 'EUR ', '') AS REAL)) AS revenue
+        FROM reservations WHERE transfer_date = ? AND type != 'cancelled' AND journey_charge IS NOT NULL AND journey_charge != ''
+        GROUP BY city ORDER BY revenue DESC`,
+      args: [todayISO],
+    },
+    // 8) Bu ay şehir bazlı ciro
+    {
+      sql: `SELECT city, SUM(CAST(REPLACE(journey_charge, 'EUR ', '') AS REAL)) AS revenue
+        FROM reservations WHERE transfer_date >= ? AND transfer_date <= ? AND type != 'cancelled' AND journey_charge IS NOT NULL AND journey_charge != ''
+        GROUP BY city ORDER BY revenue DESC`,
+      args: [monthStartISO, monthEndISO],
+    },
   ])
 
-  const [summaryRes, cityMonthRes, dailyRes, cityAllRes, typeRes, revenueRes] = results
+  const [summaryRes, cityMonthRes, dailyRes, cityAllRes, typeRes, revenueRes, todayCityRevRes, monthCityRevRes] = results
 
   const s = summaryRes.rows[0] as unknown as Record<string, number>
 
@@ -396,6 +412,14 @@ export async function getStats(): Promise<StatsData> {
     monthUpdated: Number(s.month_updated) || 0,
     todayRevenue: Number(rev.today_revenue) || 0,
     monthRevenue: Number(rev.month_revenue) || 0,
+    todayCityRevenue: todayCityRevRes.rows.map(row => {
+      const r = row as unknown as Record<string, unknown>
+      return { city: r.city as string, revenue: Number(r.revenue) || 0 }
+    }),
+    monthCityRevenue: monthCityRevRes.rows.map(row => {
+      const r = row as unknown as Record<string, unknown>
+      return { city: r.city as string, revenue: Number(r.revenue) || 0 }
+    }),
     cityBreakdown,
     cityMonthly,
     dailyCounts,

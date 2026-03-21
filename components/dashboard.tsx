@@ -107,6 +107,8 @@ function MiniCalendar({ selectedDate, onSelect, onClose }: {
 // Genel Bakış (İstatistik Sayfası)
 // =============================================
 function OverviewTab({ stats, loading }: { stats: StatsData | null; loading: boolean }) {
+  const [revenueDetail, setRevenueDetail] = useState<'today' | 'month' | null>(null)
+
   if (loading || !stats) {
     return <OverviewSkeleton />
   }
@@ -196,7 +198,11 @@ function OverviewTab({ stats, loading }: { stats: StatsData | null; loading: boo
 
       {/* Ciro kartları */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white rounded-2xl border p-4 transition-smooth hover:shadow-md">
+        <div
+          className="bg-white rounded-2xl border p-4 transition-smooth hover:shadow-md cursor-pointer"
+          style={revenueDetail === 'today' ? { borderColor: '#d97706', borderWidth: 2 } : {}}
+          onClick={() => setRevenueDetail(revenueDetail === 'today' ? null : 'today')}
+        >
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50">
               <Euro size={16} className="text-amber-600" />
@@ -207,7 +213,11 @@ function OverviewTab({ stats, loading }: { stats: StatsData | null; loading: boo
           <p className="text-[11px] text-slate-400 mt-0.5">EUR</p>
         </div>
 
-        <div className="bg-white rounded-2xl border p-4 transition-smooth hover:shadow-md">
+        <div
+          className="bg-white rounded-2xl border p-4 transition-smooth hover:shadow-md cursor-pointer"
+          style={revenueDetail === 'month' ? { borderColor: '#d97706', borderWidth: 2 } : {}}
+          onClick={() => setRevenueDetail(revenueDetail === 'month' ? null : 'month')}
+        >
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50">
               <Euro size={16} className="text-amber-600" />
@@ -218,6 +228,44 @@ function OverviewTab({ stats, loading }: { stats: StatsData | null; loading: boo
           <p className="text-[11px] text-slate-400 mt-0.5">EUR</p>
         </div>
       </div>
+
+      {/* Şehir bazlı ciro detayı */}
+      {revenueDetail && (() => {
+        const cityData = revenueDetail === 'today' ? stats.todayCityRevenue : stats.monthCityRevenue
+        const totalRev = revenueDetail === 'today' ? stats.todayRevenue : stats.monthRevenue
+        const title = revenueDetail === 'today' ? 'Bugün — Şehir Bazlı Ciro' : `${stats.monthName} — Şehir Bazlı Ciro`
+        const maxRev = cityData[0]?.revenue || 1
+        return (
+          <div className="bg-white rounded-2xl border overflow-hidden">
+            <div className="px-4 sm:px-5 py-3 sm:py-4 border-b bg-amber-50/50">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+                <span className="text-xs text-slate-400">{cityData.length} şehir</span>
+              </div>
+            </div>
+            {cityData.length === 0 ? (
+              <div className="px-5 py-8 text-center text-sm text-slate-400">Veri bulunamadı</div>
+            ) : (
+              <div>
+                {cityData.map((c, i) => (
+                  <div key={c.city} className={`flex items-center gap-3 px-4 sm:px-5 py-3 ${i !== cityData.length - 1 ? 'border-b' : ''} hover:bg-slate-50 transition-fast`}>
+                    <MapPin size={14} className="text-amber-600 shrink-0" />
+                    <span className="text-sm font-medium text-slate-900 w-28 sm:w-36 truncate shrink-0">{c.city}</span>
+                    <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
+                      <div className="h-full rounded-full bg-amber-500" style={{ width: `${(c.revenue / maxRev) * 100}%` }} />
+                    </div>
+                    <span className="text-sm font-bold text-slate-900 shrink-0 min-w-[80px] text-right">{c.revenue.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between px-4 sm:px-5 py-3 bg-amber-50/50 border-t font-semibold">
+                  <span className="text-sm text-slate-700">Toplam</span>
+                  <span className="text-sm text-slate-900">{totalRev.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Son 30 gün grafiği */}
       <div className="bg-white rounded-2xl border p-5">
