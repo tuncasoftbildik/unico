@@ -451,9 +451,10 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
         setSyncing(false); return
       }
       if (data.synced > 0) {
-        if (!silent) toast.success(`${data.synced} yeni rezervasyon eklendi.`)
+        if (!silent) { toast.success(`${data.synced} yeni rezervasyon eklendi.`); try { new Audio('/notification.wav').play() } catch {} }
         if (notificationsEnabled && silent && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           new Notification('UNICO Travel', { body: `${data.synced} yeni rezervasyon geldi!`, icon: '/logo.png' })
+          try { new Audio('/notification.wav').play() } catch {}
         }
       } else if (!silent) {
         toast.info('Yeni rezervasyon bulunamadı.')
