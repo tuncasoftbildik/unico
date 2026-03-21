@@ -721,6 +721,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
               <div className="space-y-4 animate-fadeIn">
                 {Object.entries(displayCities).map(([city, reservations]) => {
                   const isExpanded = expandedCities.has(city)
+                  const cityCancelled = reservations.filter(r => r.type === 'cancelled').length
                   return (
                     <div key={city} className="bg-white rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-md">
                       <button
@@ -735,6 +736,11 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
                           <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full text-white" style={{ background: BRAND }}>
                             {reservations.length} transfer
                           </span>
+                          {cityCancelled > 0 && (
+                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-600">
+                              {cityCancelled} iptal
+                            </span>
+                          )}
                           <ChevronRight
                             size={18}
                             className={`text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
