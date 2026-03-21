@@ -135,16 +135,27 @@ export async function mergeReservations(newItems: Reservation[]): Promise<Reserv
         passenger_name, passenger_phone, driver_sign, journey_charge, transfer_date)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(booking_id) DO UPDATE SET
-        type = excluded.type, category = excluded.category, passengers = excluded.passengers,
-        pickup_location = excluded.pickup_location, dropoff_location = excluded.dropoff_location,
-        flight_number = excluded.flight_number, flight_date = excluded.flight_date,
-        flight_date_iso = excluded.flight_date_iso, pickup_date = excluded.pickup_date,
-        pickup_date_iso = excluded.pickup_date_iso, pickup_time = excluded.pickup_time,
-        origin_airport = excluded.origin_airport, distance = excluded.distance,
-        city = excluded.city, email_date = excluded.email_date, subject = excluded.subject,
-        notes = excluded.notes, passenger_name = excluded.passenger_name,
-        passenger_phone = excluded.passenger_phone, driver_sign = excluded.driver_sign,
-        journey_charge = excluded.journey_charge, transfer_date = excluded.transfer_date`
+        type = excluded.type,
+        category = COALESCE(NULLIF(excluded.category, '-'), reservations.category),
+        passengers = COALESCE(excluded.passengers, reservations.passengers),
+        pickup_location = COALESCE(NULLIF(excluded.pickup_location, ''), reservations.pickup_location),
+        dropoff_location = COALESCE(NULLIF(excluded.dropoff_location, ''), reservations.dropoff_location),
+        flight_number = COALESCE(excluded.flight_number, reservations.flight_number),
+        flight_date = COALESCE(excluded.flight_date, reservations.flight_date),
+        flight_date_iso = COALESCE(excluded.flight_date_iso, reservations.flight_date_iso),
+        pickup_date = COALESCE(excluded.pickup_date, reservations.pickup_date),
+        pickup_date_iso = COALESCE(excluded.pickup_date_iso, reservations.pickup_date_iso),
+        pickup_time = COALESCE(excluded.pickup_time, reservations.pickup_time),
+        origin_airport = COALESCE(excluded.origin_airport, reservations.origin_airport),
+        distance = COALESCE(excluded.distance, reservations.distance),
+        city = CASE WHEN excluded.pickup_location IS NOT NULL AND excluded.pickup_location != '' THEN excluded.city ELSE reservations.city END,
+        email_date = excluded.email_date, subject = excluded.subject,
+        notes = COALESCE(excluded.notes, reservations.notes),
+        passenger_name = COALESCE(excluded.passenger_name, reservations.passenger_name),
+        passenger_phone = COALESCE(excluded.passenger_phone, reservations.passenger_phone),
+        driver_sign = COALESCE(excluded.driver_sign, reservations.driver_sign),
+        journey_charge = COALESCE(excluded.journey_charge, reservations.journey_charge),
+        transfer_date = COALESCE(excluded.transfer_date, reservations.transfer_date)`
 
   // 5'erli batch'ler halinde yaz
   for (let i = 0; i < newItems.length; i += 5) {
