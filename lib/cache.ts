@@ -240,6 +240,8 @@ export interface StatsData {
   monthCancelled: number
   monthNew: number
   monthUpdated: number
+  todayRevenue: number
+  monthRevenue: number
   cityBreakdown: { city: string; count: number }[]
   cityMonthly: CityMonthly[]
   dailyCounts: { date: string; count: number }[]
@@ -332,9 +334,17 @@ export async function getStats(): Promise<StatsData> {
       sql: `SELECT type, COUNT(*) AS count FROM reservations GROUP BY type ORDER BY count DESC`,
       args: [],
     },
+    // 6) Ciro — bugün ve bu ay (iptal edilenler hariç)
+    {
+      sql: `SELECT
+          SUM(CASE WHEN transfer_date = ? AND type != 'cancelled' THEN CAST(REPLACE(journey_charge, 'EUR ', '') AS REAL) ELSE 0 END) AS today_revenue,
+          SUM(CASE WHEN transfer_date >= ? AND transfer_date <= ? AND type != 'cancelled' THEN CAST(REPLACE(journey_charge, 'EUR ', '') AS REAL) ELSE 0 END) AS month_revenue
+        FROM reservations WHERE journey_charge IS NOT NULL AND journey_charge != ''`,
+      args: [todayISO, monthStartISO, monthEndISO],
+    },
   ])
 
-  const [summaryRes, cityMonthRes, dailyRes, cityAllRes, typeRes] = results
+  const [summaryRes, cityMonthRes, dailyRes, cityAllRes, typeRes, revenueRes] = results
 
   const s = summaryRes.rows[0] as unknown as Record<string, number>
 
@@ -373,6 +383,8 @@ export async function getStats(): Promise<StatsData> {
     return { type: r.type as string, count: Number(r.count) }
   })
 
+  const rev = revenueRes.rows[0] as unknown as Record<string, number>
+
   const result: StatsData = {
     totalAll: Number(s.total_all) || 0,
     todayCount: Number(s.today_count) || 0,
@@ -382,6 +394,8 @@ export async function getStats(): Promise<StatsData> {
     monthCancelled: Number(s.month_cancelled) || 0,
     monthNew: Number(s.month_new) || 0,
     monthUpdated: Number(s.month_updated) || 0,
+    todayRevenue: Number(rev.today_revenue) || 0,
+    monthRevenue: Number(rev.month_revenue) || 0,
     cityBreakdown,
     cityMonthly,
     dailyCounts,

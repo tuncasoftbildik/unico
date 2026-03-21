@@ -5,7 +5,8 @@ import { toast } from 'sonner'
 import {
   Calendar, MapPin, ChevronLeft, ChevronRight, LogOut, Sun, Sunrise,
   Loader2, RefreshCw, Search, X, BarChart3, Bell, BellOff,
-  TrendingUp, TrendingDown, ArrowRightLeft, Ban, CheckCircle2, AlertCircle
+  TrendingUp, TrendingDown, ArrowRightLeft, Ban, CheckCircle2, AlertCircle,
+  Euro
 } from 'lucide-react'
 import Image from 'next/image'
 import type { Reservation } from '@/lib/types'
@@ -190,6 +191,31 @@ function OverviewTab({ stats, loading }: { stats: StatsData | null; loading: boo
             <p className="text-lg sm:text-xl font-bold text-slate-900">{stats.monthUpdated}</p>
             <p className="text-[10px] sm:text-xs text-slate-500">Güncellenen</p>
           </div>
+        </div>
+      </div>
+
+      {/* Ciro kartları */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white rounded-2xl border p-4 transition-smooth hover:shadow-md">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50">
+              <Euro size={16} className="text-amber-600" />
+            </div>
+            <span className="text-xs text-slate-500 font-medium">Bugün Ciro</span>
+          </div>
+          <p className="text-2xl font-bold text-slate-900">{stats.todayRevenue.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">EUR</p>
+        </div>
+
+        <div className="bg-white rounded-2xl border p-4 transition-smooth hover:shadow-md">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50">
+              <Euro size={16} className="text-amber-600" />
+            </div>
+            <span className="text-xs text-slate-500 font-medium">{stats.monthName} Ciro</span>
+          </div>
+          <p className="text-2xl font-bold text-slate-900">{stats.monthRevenue.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">EUR</p>
         </div>
       </div>
 
