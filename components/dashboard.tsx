@@ -163,32 +163,32 @@ function OverviewTab({ stats, loading }: { stats: StatsData | null; loading: boo
       </div>
 
       {/* Bu ay detay kartları */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white rounded-2xl border p-4 flex items-center gap-3 transition-smooth hover:shadow-md">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-            <CheckCircle2 size={20} className="text-emerald-600" />
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="bg-white rounded-2xl border p-3 sm:p-4 flex items-center gap-2 sm:gap-3 transition-smooth hover:shadow-md">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+            <CheckCircle2 size={18} className="text-emerald-600" />
           </div>
           <div>
-            <p className="text-xl font-bold text-slate-900">{stats.monthNew}</p>
-            <p className="text-xs text-slate-500">Yeni</p>
+            <p className="text-lg sm:text-xl font-bold text-slate-900">{stats.monthNew}</p>
+            <p className="text-[10px] sm:text-xs text-slate-500">Yeni</p>
           </div>
         </div>
-        <div className="bg-white rounded-2xl border p-4 flex items-center gap-3 transition-smooth hover:shadow-md">
-          <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
-            <Ban size={20} className="text-red-500" />
+        <div className="bg-white rounded-2xl border p-3 sm:p-4 flex items-center gap-2 sm:gap-3 transition-smooth hover:shadow-md">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+            <Ban size={18} className="text-red-500" />
           </div>
           <div>
-            <p className="text-xl font-bold text-slate-900">{stats.monthCancelled}</p>
-            <p className="text-xs text-slate-500">İptal</p>
+            <p className="text-lg sm:text-xl font-bold text-slate-900">{stats.monthCancelled}</p>
+            <p className="text-[10px] sm:text-xs text-slate-500">İptal</p>
           </div>
         </div>
-        <div className="bg-white rounded-2xl border p-4 flex items-center gap-3 transition-smooth hover:shadow-md">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-            <AlertCircle size={20} className="text-blue-500" />
+        <div className="bg-white rounded-2xl border p-3 sm:p-4 flex items-center gap-2 sm:gap-3 transition-smooth hover:shadow-md">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+            <AlertCircle size={18} className="text-blue-500" />
           </div>
           <div>
-            <p className="text-xl font-bold text-slate-900">{stats.monthUpdated}</p>
-            <p className="text-xs text-slate-500">Güncellenen</p>
+            <p className="text-lg sm:text-xl font-bold text-slate-900">{stats.monthUpdated}</p>
+            <p className="text-[10px] sm:text-xs text-slate-500">Güncellenen</p>
           </div>
         </div>
       </div>
@@ -231,67 +231,69 @@ function OverviewTab({ stats, loading }: { stats: StatsData | null; loading: boo
 
       {/* Şehir bazlı aylık tablo */}
       <div className="bg-white rounded-2xl border overflow-hidden">
-        <div className="px-5 py-4 border-b bg-slate-50">
+        <div className="px-4 sm:px-5 py-3 sm:py-4 border-b bg-slate-50">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-900">{stats.monthName} — Şehir Bazlı Dağılım</h3>
+            <h3 className="text-sm font-semibold text-slate-900">{stats.monthName} — Şehir Bazlı</h3>
             <span className="text-xs text-slate-400">{stats.cityMonthly.length} şehir</span>
           </div>
         </div>
 
-        {/* Tablo başlığı */}
-        <div className="grid grid-cols-12 px-5 py-2.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b bg-slate-50/50">
-          <div className="col-span-4">Şehir</div>
-          <div className="col-span-3 text-center">Toplam</div>
-          <div className="col-span-2 text-center text-emerald-600">Yeni</div>
-          <div className="col-span-2 text-center text-red-500">İptal</div>
-          <div className="col-span-1 text-center text-blue-500">Gnc</div>
-        </div>
+        <div className="overflow-x-auto">
+          {/* Tablo başlığı */}
+          <div className="grid grid-cols-12 px-4 sm:px-5 py-2.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b bg-slate-50/50 min-w-[400px]">
+            <div className="col-span-4">Şehir</div>
+            <div className="col-span-3 text-center">Toplam</div>
+            <div className="col-span-2 text-center text-emerald-600">Yeni</div>
+            <div className="col-span-2 text-center text-red-500">İptal</div>
+            <div className="col-span-1 text-center text-blue-500">Gnc</div>
+          </div>
 
-        {/* Şehir satırları */}
-        {stats.cityMonthly.map((c, i) => (
-          <div key={c.city} className={`grid grid-cols-12 px-5 py-3 items-center ${i !== stats.cityMonthly.length - 1 ? 'border-b' : ''} hover:bg-slate-50 transition-fast`}>
-            <div className="col-span-4 flex items-center gap-2">
-              <MapPin size={14} style={{ color: BRAND }} />
-              <span className="text-sm font-medium text-slate-900">{c.city}</span>
-            </div>
-            <div className="col-span-3 text-center">
-              <div className="flex items-center gap-2">
-                <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: `${(c.total / maxCity) * 100}%`, background: BRAND }} />
+          {/* Şehir satırları */}
+          {stats.cityMonthly.map((c, i) => (
+            <div key={c.city} className={`grid grid-cols-12 px-4 sm:px-5 py-3 items-center min-w-[400px] ${i !== stats.cityMonthly.length - 1 ? 'border-b' : ''} hover:bg-slate-50 transition-fast`}>
+              <div className="col-span-4 flex items-center gap-2">
+                <MapPin size={14} style={{ color: BRAND }} className="shrink-0" />
+                <span className="text-sm font-medium text-slate-900 truncate">{c.city}</span>
+              </div>
+              <div className="col-span-3 text-center">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${(c.total / maxCity) * 100}%`, background: BRAND }} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-900 w-8 text-right">{c.total}</span>
                 </div>
-                <span className="text-sm font-bold text-slate-900 w-8 text-right">{c.total}</span>
+              </div>
+              <div className="col-span-2 text-center">
+                <span className="text-sm text-emerald-600 font-medium">{c.newCount}</span>
+              </div>
+              <div className="col-span-2 text-center">
+                {c.cancelledCount > 0 ? (
+                  <span className="text-sm text-red-500 font-medium">{c.cancelledCount}</span>
+                ) : (
+                  <span className="text-sm text-slate-300">-</span>
+                )}
+              </div>
+              <div className="col-span-1 text-center">
+                {c.updatedCount > 0 ? (
+                  <span className="text-sm text-blue-500 font-medium">{c.updatedCount}</span>
+                ) : (
+                  <span className="text-sm text-slate-300">-</span>
+                )}
               </div>
             </div>
-            <div className="col-span-2 text-center">
-              <span className="text-sm text-emerald-600 font-medium">{c.newCount}</span>
-            </div>
-            <div className="col-span-2 text-center">
-              {c.cancelledCount > 0 ? (
-                <span className="text-sm text-red-500 font-medium">{c.cancelledCount}</span>
-              ) : (
-                <span className="text-sm text-slate-300">-</span>
-              )}
-            </div>
-            <div className="col-span-1 text-center">
-              {c.updatedCount > 0 ? (
-                <span className="text-sm text-blue-500 font-medium">{c.updatedCount}</span>
-              ) : (
-                <span className="text-sm text-slate-300">-</span>
-              )}
-            </div>
-          </div>
-        ))}
+          ))}
 
-        {/* Alt toplam satırı */}
-        {stats.cityMonthly.length > 0 && (
-          <div className="grid grid-cols-12 px-5 py-3 items-center bg-slate-50 border-t font-semibold">
-            <div className="col-span-4 text-sm text-slate-700">Toplam</div>
-            <div className="col-span-3 text-center text-sm text-slate-900">{stats.monthCount}</div>
-            <div className="col-span-2 text-center text-sm text-emerald-600">{stats.monthNew}</div>
-            <div className="col-span-2 text-center text-sm text-red-500">{stats.monthCancelled}</div>
-            <div className="col-span-1 text-center text-sm text-blue-500">{stats.monthUpdated}</div>
-          </div>
-        )}
+          {/* Alt toplam satırı */}
+          {stats.cityMonthly.length > 0 && (
+            <div className="grid grid-cols-12 px-4 sm:px-5 py-3 items-center bg-slate-50 border-t font-semibold min-w-[400px]">
+              <div className="col-span-4 text-sm text-slate-700">Toplam</div>
+              <div className="col-span-3 text-center text-sm text-slate-900">{stats.monthCount}</div>
+              <div className="col-span-2 text-center text-sm text-emerald-600">{stats.monthNew}</div>
+              <div className="col-span-2 text-center text-sm text-red-500">{stats.monthCancelled}</div>
+              <div className="col-span-1 text-center text-sm text-blue-500">{stats.monthUpdated}</div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Bu ay toplam kartı */}
@@ -650,29 +652,29 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
 
             {/* Tarih info */}
             {!isSearching && (
-              <div className="bg-white rounded-2xl border p-5 animate-fadeIn">
-                <div className="flex items-center justify-between">
+              <div className="bg-white rounded-2xl border p-4 sm:p-5 animate-fadeIn">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
                     <p className="text-sm text-slate-500">Seçili Tarih</p>
-                    <p className="text-lg font-semibold text-slate-900 mt-0.5">{formatDateTR(selectedDate)}</p>
+                    <p className="text-base sm:text-lg font-semibold text-slate-900 mt-0.5">{formatDateTR(selectedDate)}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="sm:text-right">
                     <p className="text-sm text-slate-500">Toplam Transfer</p>
-                    {loading ? <Loader2 size={28} className="animate-spin mt-1 ml-auto" style={{ color: BRAND }} />
+                    {loading ? <Loader2 size={28} className="animate-spin mt-1 sm:ml-auto" style={{ color: BRAND }} />
                       : (
                         <div className="flex items-center gap-2 mt-0.5">
-                          <div className="text-right">
+                          <div className="sm:text-right">
                             <p className="text-lg font-semibold text-slate-600">{normalCount}</p>
                             <p className="text-[10px] text-slate-400">Normal</p>
                           </div>
                           <span className="text-slate-300">+</span>
-                          <div className="text-right">
+                          <div className="sm:text-right">
                             <p className="text-lg font-semibold text-red-500">{cancelledCount}</p>
                             <p className="text-[10px] text-red-400">İptal</p>
                           </div>
                           <span className="text-slate-300">=</span>
-                          <div className="text-right">
-                            <p className="text-3xl font-bold" style={{ color: BRAND }}>{total}</p>
+                          <div className="sm:text-right">
+                            <p className="text-2xl sm:text-3xl font-bold" style={{ color: BRAND }}>{total}</p>
                             <p className="text-[10px] text-slate-400">Toplam</p>
                           </div>
                         </div>

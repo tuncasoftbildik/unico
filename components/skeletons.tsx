@@ -143,10 +143,10 @@ export function OverviewSkeleton() {
       </div>
 
       {/* Detail cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-2xl border p-4 flex items-center gap-3 animate-fadeIn">
-            <div className="w-10 h-10 rounded-xl bg-slate-200 shrink-0 animate-shimmer" />
+          <div key={i} className="bg-white rounded-2xl border p-3 sm:p-4 flex items-center gap-2 sm:gap-3 animate-fadeIn">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-200 shrink-0 animate-shimmer" />
             <div className="space-y-2">
               <div className="h-6 w-12 bg-slate-200 rounded animate-shimmer" />
               <div className="h-3 w-16 bg-slate-200 rounded animate-shimmer" />
