@@ -6,7 +6,7 @@ import {
   Calendar, MapPin, ChevronLeft, ChevronRight, LogOut, Sun, Sunrise,
   Loader2, RefreshCw, Search, X, BarChart3, Bell, BellOff,
   TrendingUp, TrendingDown, ArrowRightLeft, Ban, CheckCircle2, AlertCircle,
-  Euro
+  Euro, Trash2
 } from 'lucide-react'
 import Image from 'next/image'
 import type { Reservation } from '@/lib/types'
@@ -533,12 +533,16 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsSync])
 
-  async function handleSync(force = false, silent = false) {
+  async function handleSync(force = false, silent = false, reset = false) {
     if (syncing) return
     setSyncing(true)
-    if (!silent) toast.info('Mailler okunuyor... Bu biraz sürebilir.')
+    if (!silent) toast.info(reset ? 'Veriler sıfırlanıp API\'den çekiliyor...' : 'API\'den rezervasyonlar çekiliyor...')
     try {
-      const res = await fetch(`/api/sync${force ? '?force=true' : ''}`, { method: 'POST' })
+      const params = new URLSearchParams()
+      if (force) params.set('force', 'true')
+      if (reset) params.set('reset', 'true')
+      const qs = params.toString()
+      const res = await fetch(`/api/sync${qs ? `?${qs}` : ''}`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) {
         if (!silent) toast.error(data.error || 'Senkronizasyon başarısız.')
@@ -653,10 +657,16 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
                 title={notificationsEnabled ? 'Bildirimleri kapat' : 'Bildirimleri aç'}>
                 {notificationsEnabled ? <Bell size={16} style={{ color: BRAND }} /> : <BellOff size={16} className="text-slate-400" />}
               </button>
+              <button onClick={() => handleSync(false, false, true)} disabled={syncing}
+                className="flex items-center gap-1.5 text-xs transition-fast disabled:opacity-50 hover:opacity-80 text-slate-500 hover:text-slate-700"
+                title="Eski verileri silip API'den yeniden çek">
+                <Trash2 size={14} />
+                <span className="hidden sm:inline">Sıfırla</span>
+              </button>
               <button onClick={() => handleSync()} disabled={syncing}
                 className="flex items-center gap-1.5 text-sm transition-fast disabled:opacity-50 hover:opacity-80" style={{ color: BRAND }}>
                 <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
-                <span className="hidden sm:inline">{syncing ? 'Okunuyor...' : 'Güncelle'}</span>
+                <span className="hidden sm:inline">{syncing ? 'Çekiliyor...' : 'Güncelle'}</span>
               </button>
               <button onClick={handleLogout} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-fast">
                 <LogOut size={16} /><span className="hidden sm:inline">Çıkış</span>
@@ -789,7 +799,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
             {syncing && (
               <div className="rounded-2xl p-4 flex items-center gap-3" style={{ background: BRAND_LIGHT, border: '1px solid #fecaca' }}>
                 <Loader2 size={20} className="animate-spin shrink-0" style={{ color: BRAND }} />
-                <p className="text-sm" style={{ color: '#991b1b' }}>Mailler okunuyor...</p>
+                <p className="text-sm" style={{ color: '#991b1b' }}>API'den senkronize ediliyor...</p>
               </div>
             )}
 

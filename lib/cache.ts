@@ -157,9 +157,9 @@ export async function mergeReservations(newItems: Reservation[]): Promise<Reserv
         journey_charge = COALESCE(excluded.journey_charge, reservations.journey_charge),
         transfer_date = COALESCE(excluded.transfer_date, reservations.transfer_date)`
 
-  // 5'erli batch'ler halinde yaz
-  for (let i = 0; i < newItems.length; i += 5) {
-    const batch = newItems.slice(i, i + 5)
+  // 100'erli batch'ler halinde yaz
+  for (let i = 0; i < newItems.length; i += 100) {
+    const batch = newItems.slice(i, i + 100)
     await db.batch(batch.map(r => {
       const row = reservationToRow(r)
       return {

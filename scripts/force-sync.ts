@@ -1,19 +1,18 @@
 /**
- * Force sync script — tüm mailleri baştan okuyup Turso'ya yazar.
- * ON CONFLICT ile duplicate'ler güvenli şekilde güncellenir.
+ * Force sync script — API'den tüm booking'leri çekip Turso'ya yazar.
  * Kullanım: npx tsx scripts/force-sync.ts
  */
 import { config } from 'dotenv'
 config({ path: '.env.local' })
 
-import { syncFromImap } from '../lib/imap'
+import { syncFromApi } from '../lib/booking-api'
 
 async function main() {
-  console.log('Force sync başlıyor...')
+  console.log('API sync başlıyor...')
   console.time('sync')
-  const result = await syncFromImap(true)
+  const result = await syncFromApi()
   console.timeEnd('sync')
-  console.log(`Sonuç: ${result.synced} yeni, ${result.total} toplam`)
+  console.log(`Sonuç: ${result.synced} işlendi, ${result.total} toplam`)
   process.exit(0)
 }
 

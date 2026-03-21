@@ -1,11 +1,11 @@
 # UNICO — Rezervasyon Paneli
 
-Booking.com transfer rezervasyonlarını email üzerinden okuyarak gösteren şifre korumalı panel.
+Booking.com Taxi Supplier API üzerinden transfer rezervasyonlarını gösteren şifre korumalı panel.
 
 ## Özellikler
 
 - Şifre ile giriş (cookie tabanlı oturum)
-- Booking.com maillerinden otomatik rezervasyon parse etme (IMAP)
+- Booking.com API'den otomatik rezervasyon çekme (OAuth 2.0)
 - Bugün / Yarın hızlı filtre butonları + Takvim ile gün seçimi
 - Şehir bazlı rezervasyon gruplandırma (İstanbul, Antalya, Bodrum, vb.)
 - Rezervasyon numarasına tıklayarak detay görüntüleme
@@ -13,14 +13,15 @@ Booking.com transfer rezervasyonlarını email üzerinden okuyarak gösteren şi
   - Araç kategorisi, yolcu sayısı
   - Uçuş bilgisi, mesafe
   - Booking.com portal linki
-- Yeni / İptal / Güncelleme durumu takibi
-- Aynı booking ID için son durumu gösterme (iptal varsa iptal olarak gösterir)
+- Yeni / İptal / Tamamlanan durumu takibi
+- Gelir ve komisyon istatistikleri
 
 ## Tech Stack
 
 - **Framework:** Next.js 16, TypeScript
 - **UI:** Tailwind CSS, Lucide Icons, Sonner
-- **Email:** IMAP (imapflow + mailparser)
+- **API:** Booking.com Taxi Supplier API (OAuth 2.0)
+- **DB:** Turso (libSQL)
 
 ## Kurulum
 
@@ -28,7 +29,6 @@ Booking.com transfer rezervasyonlarını email üzerinden okuyarak gösteren şi
 git clone https://github.com/tuncasoftbildik/unico.git
 cd unico
 npm install
-cp .env.local.example .env.local
 npm run dev
 ```
 
@@ -36,10 +36,10 @@ npm run dev
 
 ```env
 APP_PASSWORD=your_panel_password
-IMAP_HOST=imap.gmail.com
-IMAP_PORT=993
-IMAP_USER=your@email.com
-IMAP_PASS=your_app_password
+BOOKING_CLIENT_ID=your_booking_client_id
+BOOKING_CLIENT_SECRET=your_booking_client_secret
+TURSO_DATABASE_URL=your_turso_url
+TURSO_AUTH_TOKEN=your_turso_token
 ```
 
 ## Yapı
@@ -48,24 +48,29 @@ IMAP_PASS=your_app_password
 app/
   page.tsx                  # Ana sayfa (login → dashboard)
   api/auth/route.ts         # Şifre doğrulama
-  api/reservations/route.ts # IMAP'tan rezervasyon çekme
+  api/reservations/route.ts # Tarih bazlı rezervasyon sorgulama
+  api/sync/route.ts         # API senkronizasyonu
+  api/stats/route.ts        # İstatistikler
+  api/search/route.ts       # Arama
 components/
   login-screen.tsx          # Giriş ekranı
   dashboard.tsx             # Panel (tarih seçici + şehir grupları)
   reservation-detail.tsx    # Detay modal
 lib/
   types.ts                  # Tip tanımları
-  imap.ts                   # IMAP bağlantısı + mail parse
+  booking-api.ts            # Booking.com API entegrasyonu
+  cache.ts                  # DB cache yönetimi
+  db.ts                     # Turso veritabanı bağlantısı
 ```
 
-## Desteklenen Mail Tipleri
+## Rezervasyon Durumları
 
-| Tip | Subject Pattern | Durum |
-|-----|----------------|-------|
-| Yeni | `booking NEW confirmation ID #XXX` | Yeşil |
-| İptal | `free cancellation ID #XXX` | Kırmızı |
-| Güncelleme | `Booking ID #XXX updated` | Mavi |
+| API Status | Panel Durumu | Renk |
+|-----------|-------------|------|
+| NEW, ACCEPTED, DRIVER_ASSIGNED | Yeni | Yeşil |
+| CANCELLED, REJECTED, NO_SHOW | İptal | Kırmızı |
+| COMPLETED | Tamamlandı | Mavi |
 
 ---
 
-*v0.1*
+*v0.2 — API entegrasyonu*
