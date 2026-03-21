@@ -22,6 +22,12 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "UNICO — Rezervasyon Paneli",
   description: "Rezervasyon yönetim paneli",
+  icons: {
+    icon: [
+      { url: "/favicon.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
