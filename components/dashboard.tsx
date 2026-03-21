@@ -197,37 +197,55 @@ function OverviewTab({ stats, loading }: { stats: StatsData | null; loading: boo
       </div>
 
       {/* Ciro kartları */}
-      <div className="grid grid-cols-2 gap-3">
-        <div
-          className="bg-white rounded-2xl border p-4 transition-smooth hover:shadow-md cursor-pointer"
-          style={revenueDetail === 'today' ? { borderColor: '#d97706', borderWidth: 2 } : {}}
-          onClick={() => setRevenueDetail(revenueDetail === 'today' ? null : 'today')}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50">
-              <Euro size={16} className="text-amber-600" />
+      {(() => {
+        const rev = stats.monthRevenue
+        const commissionRate = rev <= 100_000 ? 7 : rev <= 200_000 ? 6 : rev <= 300_000 ? 5.5 : 5
+        const commission = rev * commissionRate / 100
+        return (
+          <div className="grid grid-cols-3 gap-3">
+            <div
+              className="bg-white rounded-2xl border p-4 transition-smooth hover:shadow-md cursor-pointer"
+              style={revenueDetail === 'today' ? { borderColor: '#d97706', borderWidth: 2 } : {}}
+              onClick={() => setRevenueDetail(revenueDetail === 'today' ? null : 'today')}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50">
+                  <Euro size={16} className="text-amber-600" />
+                </div>
+                <span className="text-xs text-slate-500 font-medium">Bugün Ciro</span>
+              </div>
+              <p className="text-2xl font-bold text-slate-900">{stats.todayRevenue.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">EUR</p>
             </div>
-            <span className="text-xs text-slate-500 font-medium">Bugün Ciro</span>
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{stats.todayRevenue.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">EUR</p>
-        </div>
 
-        <div
-          className="bg-white rounded-2xl border p-4 transition-smooth hover:shadow-md cursor-pointer"
-          style={revenueDetail === 'month' ? { borderColor: '#d97706', borderWidth: 2 } : {}}
-          onClick={() => setRevenueDetail(revenueDetail === 'month' ? null : 'month')}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50">
-              <Euro size={16} className="text-amber-600" />
+            <div
+              className="bg-white rounded-2xl border p-4 transition-smooth hover:shadow-md cursor-pointer"
+              style={revenueDetail === 'month' ? { borderColor: '#d97706', borderWidth: 2 } : {}}
+              onClick={() => setRevenueDetail(revenueDetail === 'month' ? null : 'month')}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50">
+                  <Euro size={16} className="text-amber-600" />
+                </div>
+                <span className="text-xs text-slate-500 font-medium">{stats.monthName} Ciro</span>
+              </div>
+              <p className="text-2xl font-bold text-slate-900">{stats.monthRevenue.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">EUR</p>
             </div>
-            <span className="text-xs text-slate-500 font-medium">{stats.monthName} Ciro</span>
+
+            <div className="bg-white rounded-2xl border p-4 transition-smooth hover:shadow-md">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-emerald-50">
+                  <TrendingUp size={16} className="text-emerald-600" />
+                </div>
+                <span className="text-xs text-slate-500 font-medium">Komisyon Kazanç</span>
+              </div>
+              <p className="text-2xl font-bold text-emerald-600">{commission.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">EUR — %{commissionRate.toLocaleString('tr-TR')}</p>
+            </div>
           </div>
-          <p className="text-2xl font-bold text-slate-900">{stats.monthRevenue.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">EUR</p>
-        </div>
-      </div>
+        )
+      })()}
 
       {/* Şehir bazlı ciro detayı */}
       {revenueDetail && (() => {
