@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { filterByDate, getSyncMeta } from '@/lib/cache'
+import { filterByDate, filterByCityMonth, getSyncMeta } from '@/lib/salesforce'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,23 +11,33 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url)
   const date = searchParams.get('date')
+  const city = searchParams.get('city')
 
-  if (!date || date === 'check') {
+  if (!date && !city || date === 'check') {
     const meta = await getSyncMeta()
     return NextResponse.json({ total: 0, date: 'none', cities: {}, lastSync: meta?.lastSync || null })
   }
 
-  const reservations = await filterByDate(date)
+  // Şehir bazlı aylık sorgu
+  const reservations = city
+    ? await filterByCityMonth(city)
+    : await filterByDate(date!)
 
-  // Şehre göre grupla ve iptal sayısını hesapla
-  const cityGroups: Record<string, typeof reservations> = {}
+  // Tarihe göre grupla (şehir modunda) veya şehre göre grupla
+  const groups: Record<string, typeof reservations> = {}
   let cancelledCount = 0
-  
+
   for (const r of reservations) {
-    if (!cityGroups[r.city]) cityGroups[r.city] = []
-    cityGroups[r.city].push(r)
+    const key = city ? (r.pickupDateISO || r.flightDateISO || 'Tarihsiz') : r.city
+    if (!groups[key]) groups[key] = []
+    groups[key].push(r)
     if (r.type === 'cancelled') cancelledCount++
   }
+
+  // Şehir modunda tarihe göre sırala (en yakın tarih üstte)
+  const sortedGroups = city
+    ? Object.fromEntries(Object.entries(groups).sort(([a], [b]) => a.localeCompare(b)))
+    : groups
 
   const meta = await getSyncMeta()
 
@@ -35,8 +45,9 @@ export async function GET(request: NextRequest) {
     total: reservations.length,
     normalCount: reservations.length - cancelledCount,
     cancelledCount,
-    date,
-    cities: cityGroups,
+    date: date || city,
+    cities: sortedGroups,
     lastSync: meta?.lastSync || null,
+    cityMode: !!city,
   })
 }

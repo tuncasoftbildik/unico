@@ -17,10 +17,18 @@ export function getDb() {
 }
 
 /**
- * Tabloları oluştur (uygulama ilk açıldığında çalışır)
+ * Tabloları kontrol et — tablolar zaten varsa yazma işlemi yapma
  */
 export async function initDb() {
   const db = getDb()
+
+  // Sadece okuma ile tablo varlığını kontrol et
+  try {
+    await db.execute("SELECT 1 FROM reservations LIMIT 1")
+    return // Tablolar zaten var, yazma gerekmez
+  } catch {
+    // Tablo yoksa oluştur
+  }
 
   await db.batch([
     {

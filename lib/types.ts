@@ -1,6 +1,6 @@
 export interface Reservation {
   bookingId: string
-  type: 'new' | 'cancelled' | 'updated'
+  type: 'new' | 'cancelled' | 'cancelledWithCost' | 'updated'
   category: string
   passengers: number
   pickupLocation: string

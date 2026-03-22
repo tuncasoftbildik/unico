@@ -5,9 +5,10 @@ import { X, MapPin, Plane, Users, Car, Navigation, Clock, FileText, ArrowRight, 
 
 const BRAND = '#BE1E2D'
 
-const typeConfig = {
+const typeConfig: Record<string, { label: string; color: string }> = {
   new: { label: 'Yeni', color: 'bg-emerald-100 text-emerald-700' },
   cancelled: { label: 'İptal', color: 'bg-red-100 text-red-700' },
+  cancelledWithCost: { label: 'İptal (Ücretli)', color: 'bg-orange-100 text-orange-700' },
   updated: { label: 'Güncellendi', color: 'bg-blue-100 text-blue-700' },
 }
 

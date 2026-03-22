@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { searchReservations } from '@/lib/cache'
+import { searchReservations } from '@/lib/salesforce'
 
 export const dynamic = 'force-dynamic'
 
