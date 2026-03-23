@@ -194,12 +194,12 @@ function OverviewTab({ stats, loading, onCityClick }: { stats: StatsData | null;
           </div>
           <p className="text-xl sm:text-3xl font-extrabold text-red-600">{stats.monthCancelled.toLocaleString('tr-TR')}</p>
         </div>
-        <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl border border-blue-100 p-3 sm:p-4 hover:shadow-md transition-all duration-300">
+        <div className="bg-gradient-to-br from-orange-50 to-white rounded-2xl border border-orange-100 p-3 sm:p-4 hover:shadow-md transition-all duration-300">
           <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-blue-500" />
-            <span className="text-[9px] sm:text-xs font-semibold text-blue-600 uppercase tracking-wider">Güncellenen</span>
+            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-orange-500" />
+            <span className="text-[9px] sm:text-xs font-semibold text-orange-600 uppercase tracking-wider">İptal Oranı</span>
           </div>
-          <p className="text-xl sm:text-3xl font-extrabold text-blue-600">{stats.monthUpdated.toLocaleString('tr-TR')}</p>
+          <p className="text-xl sm:text-3xl font-extrabold text-orange-600">{stats.monthCount > 0 ? (stats.monthCancelled / stats.monthCount * 100).toFixed(1) : '0.0'}%</p>
         </div>
       </div>
 
@@ -417,10 +417,10 @@ function OverviewTab({ stats, loading, onCityClick }: { stats: StatsData | null;
                         <p className="text-[9px] text-red-400 uppercase tracking-wider font-semibold">iptal</p>
                       </div>
                     )}
-                    {c.updatedCount > 0 && (
+                    {c.total > 0 && (
                       <div>
-                        <p className="text-lg font-bold text-blue-500">{c.updatedCount.toLocaleString('tr-TR')}</p>
-                        <p className="text-[9px] text-blue-400 uppercase tracking-wider font-semibold">gnc</p>
+                        <p className="text-lg font-bold text-orange-500">{(c.cancelledCount / c.total * 100).toFixed(0)}%</p>
+                        <p className="text-[9px] text-orange-400 uppercase tracking-wider font-semibold">ipt%</p>
                       </div>
                     )}
                   </div>
@@ -454,8 +454,8 @@ function OverviewTab({ stats, loading, onCityClick }: { stats: StatsData | null;
                   <p className="text-[9px] sm:text-[10px] text-red-400/70 uppercase tracking-wider font-semibold">iptal</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-base sm:text-lg font-bold text-blue-400">{stats.monthUpdated.toLocaleString('tr-TR')}</p>
-                  <p className="text-[9px] sm:text-[10px] text-blue-400/70 uppercase tracking-wider font-semibold">güncellenen</p>
+                  <p className="text-base sm:text-lg font-bold text-orange-400">{stats.monthCount > 0 ? (stats.monthCancelled / stats.monthCount * 100).toFixed(1) : '0.0'}%</p>
+                  <p className="text-[9px] sm:text-[10px] text-orange-400/70 uppercase tracking-wider font-semibold">iptal oranı</p>
                 </div>
               </div>
             </div>
