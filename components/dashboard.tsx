@@ -107,7 +107,7 @@ function MiniCalendar({ selectedDate, onSelect, onClose }: {
 // =============================================
 // Genel Bakış (İstatistik Sayfası)
 // =============================================
-function OverviewTab({ stats, loading, onCityClick }: { stats: StatsData | null; loading: boolean; onCityClick?: (city: string) => void }) {
+function OverviewTab({ stats, loading, onCityClick, onDateSelect }: { stats: StatsData | null; loading: boolean; onCityClick?: (city: string) => void; onDateSelect?: (date: string) => void }) {
   const [revenueDetail, setRevenueDetail] = useState<'today' | 'month' | null>(null)
 
   if (loading || !stats) {
@@ -365,6 +365,83 @@ function OverviewTab({ stats, loading, onCityClick }: { stats: StatsData | null;
           <span className="text-[11px] font-bold" style={{ color: BRAND }}>Bugün</span>
         </div>
       </div>
+
+      {/* Aylık Takvim Görünümü */}
+      {(() => {
+        const calendarData = stats.calendarCounts
+        if (!calendarData || calendarData.length === 0) return null
+        const maxCal = Math.max(...calendarData.map(d => d.total), 1)
+        const firstDate = new Date(calendarData[0].date + 'T00:00:00')
+        const firstDay = firstDate.getDay()
+        const offset = firstDay === 0 ? 6 : firstDay - 1
+        const calendarMap = new Map(calendarData.map(d => [d.date, d]))
+        const today = todayStr()
+
+        return (
+          <div className="bg-white rounded-2xl border border-slate-200/60 p-4 sm:p-6 hover:shadow-md transition-all duration-300">
+            <div className="flex items-center justify-between mb-4 sm:mb-5">
+              <div>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900">{stats.monthName} — Takvim</h3>
+                <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5">Güne tıklayarak transferleri görüntüleyin</p>
+              </div>
+              <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs text-slate-400">
+                <div className="flex items-center gap-1">
+                  <div className="w-2.5 h-2.5 rounded" style={{ background: '#fecaca' }} />
+                  <span>Az</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-2.5 h-2.5 rounded" style={{ background: BRAND }} />
+                  <span>Yoğun</span>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pz'].map(d => (
+                <div key={d} className="text-center text-[10px] sm:text-xs font-semibold text-slate-400 py-1">{d}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+              {Array.from({ length: offset }).map((_, i) => <div key={`empty-${i}`} />)}
+              {calendarData.map(d => {
+                const day = new Date(d.date + 'T00:00:00').getDate()
+                const isToday = d.date === today
+                const isPast = d.date < today
+                const intensity = d.total > 0 ? Math.max(0.15, d.total / maxCal) : 0
+                const hasTransfers = d.total > 0
+                const activeCount = d.total - d.cancelled
+
+                return (
+                  <button
+                    key={d.date}
+                    onClick={() => hasTransfers && onDateSelect?.(d.date)}
+                    className={`relative rounded-xl p-1.5 sm:p-2 text-center transition-all duration-200 ${
+                      hasTransfers ? 'cursor-pointer hover:scale-105 hover:shadow-md' : 'cursor-default'
+                    } ${isToday ? 'ring-2 ring-offset-1' : ''}`}
+                    style={{
+                      background: hasTransfers
+                        ? `rgba(190, 30, 45, ${intensity})`
+                        : isPast ? '#f8fafc' : '#ffffff',
+                      ...(isToday ? { ringColor: BRAND } : {}),
+                    }}
+                  >
+                    <p className={`text-xs sm:text-sm font-medium ${
+                      isToday ? 'font-bold' : isPast && !hasTransfers ? 'text-slate-300' : 'text-slate-700'
+                    }`} style={isToday ? { color: BRAND } : hasTransfers ? { color: intensity > 0.6 ? '#fff' : '#1e293b' } : undefined}>
+                      {day}
+                    </p>
+                    {hasTransfers && (
+                      <p className={`text-[9px] sm:text-[10px] font-bold mt-0.5 ${intensity > 0.6 ? 'text-white/90' : ''}`}
+                        style={intensity <= 0.6 ? { color: BRAND } : undefined}>
+                        {activeCount}{d.cancelled > 0 && <span className="text-red-400">/{d.cancelled}</span>}
+                      </p>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Şehir bazlı aylık — kart grid */}
       <div>
@@ -785,6 +862,9 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
             setCityFilter(city)
             setActiveTab('transfers')
             fetchCityReservations(city)
+          }} onDateSelect={(date) => {
+            setSelectedDate(date)
+            setActiveTab('transfers')
           }} />
         )}
 

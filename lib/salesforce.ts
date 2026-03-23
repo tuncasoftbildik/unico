@@ -278,6 +278,7 @@ export interface StatsData {
   cityBreakdown: { city: string; count: number }[]
   cityMonthly: CityMonthly[]
   dailyCounts: { date: string; count: number }[]
+  calendarCounts: { date: string; total: number; cancelled: number }[]
   typeBreakdown: { type: string; count: number }[]
   monthName: string
   // Geçen ay karşılaştırma
@@ -414,6 +415,25 @@ export async function getStats(): Promise<StatsData> {
     dailyCounts.push({ date: dateStr, count: dailyMap.get(dateStr) || 0 })
   }
 
+  // Calendar counts (current month — day by day)
+  const calendarMap = new Map<string, { total: number; cancelled: number }>()
+  for (const r of monthReservations) {
+    const date = r.pickupDateISO || r.flightDateISO
+    if (!date) continue
+    const existing = calendarMap.get(date) || { total: 0, cancelled: 0 }
+    existing.total++
+    if (r.type === 'cancelled') existing.cancelled++
+    calendarMap.set(date, existing)
+  }
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+  const calendarCounts: { date: string; total: number; cancelled: number }[] = []
+  for (let i = 1; i <= daysInMonth; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth(), i)
+    const dateStr = toDateStr(d)
+    const entry = calendarMap.get(dateStr) || { total: 0, cancelled: 0 }
+    calendarCounts.push({ date: dateStr, ...entry })
+  }
+
   // City breakdown (all time — use month data for performance)
   const cityAllMap = new Map<string, number>()
   for (const r of monthReservations) {
@@ -448,6 +468,7 @@ export async function getStats(): Promise<StatsData> {
     cityBreakdown,
     cityMonthly,
     dailyCounts,
+    calendarCounts,
     typeBreakdown,
     monthName: monthNames[today.getMonth()],
     prevMonthCount,
