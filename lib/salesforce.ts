@@ -235,23 +235,14 @@ const SF_FIELDS = `
 
 const RT_FILTER = "RecordType.Name = 'Booking - Unico'"
 
-export async function filterByDate(date: string): Promise<Reservation[]> {
-  const records = await sfQuery<SFReservation>(
-    `SELECT ${SF_FIELDS} FROM Reservation__c WHERE ${RT_FILTER} AND Pickup_Date__c = ${date} ORDER BY Pickup_Date_Time__c ASC`
-  )
-  return records.map(sfToReservation)
+export async function filterByDate(_date: string): Promise<Reservation[]> {
+  // SALESFORCE SORGULARI DEVRE DIŞI — aşırı sorgu limiti aşıldı
+  return []
 }
 
-export async function searchReservations(query: string): Promise<Reservation[]> {
-  const q = query.trim()
-  if (!q) return []
-
-  // SOSL search for flexible matching
-  const escaped = q.replace(/'/g, "\\'")
-  const records = await sfQuery<SFReservation>(
-    `SELECT ${SF_FIELDS} FROM Reservation__c WHERE ${RT_FILTER} AND (Name LIKE '%${escaped}%' OR Passenger_Name__c LIKE '%${escaped}%' OR Reservation_Id__c LIKE '%${escaped}%' OR Flight_Number__c LIKE '%${escaped}%') ORDER BY CreatedDate DESC LIMIT 50`
-  )
-  return records.map(sfToReservation)
+export async function searchReservations(_query: string): Promise<Reservation[]> {
+  // SALESFORCE SORGULARI DEVRE DIŞI — aşırı sorgu limiti aşıldı
+  return []
 }
 
 export interface CityMonthly {
@@ -303,11 +294,22 @@ export function invalidateStatsCache() {
 }
 
 export async function getStats(): Promise<StatsData> {
-  if (statsCache && Date.now() - statsCache.time < STATS_TTL) {
-    return statsCache.data
+  // SALESFORCE SORGULARI DEVRE DIŞI — aşırı sorgu limiti aşıldı
+  // Boş stats döndür
+  const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+  const today = new Date()
+  const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+  return {
+    totalAll: 0, todayCount: 0, tomorrowCount: 0, weekCount: 0,
+    monthCount: 0, monthCancelled: 0, monthNew: 0, monthUpdated: 0,
+    todayRevenue: 0, monthRevenue: 0,
+    todayCityRevenue: [], monthCityRevenue: [],
+    cityBreakdown: [], cityMonthly: [], dailyCounts: [], calendarCounts: [],
+    typeBreakdown: [], monthName: monthNames[today.getMonth()],
+    prevMonthCount: 0, prevMonthRevenue: 0, prevMonthName: monthNames[prevMonth.getMonth()],
   }
 
-  const today = new Date()
+  /* --- Orijinal SF sorgu kodu devre dışı ---
   const todayISO = toDateStr(today)
   const tomorrow = new Date(today)
   tomorrow.setDate(today.getDate() + 1)
@@ -478,19 +480,12 @@ export async function getStats(): Promise<StatsData> {
 
   statsCache = { data: result, time: Date.now() }
   return result
+  --- */
 }
 
-export async function filterByCityMonth(city: string): Promise<Reservation[]> {
-  const today = new Date()
-  const monthStart = toDateStr(new Date(today.getFullYear(), today.getMonth(), 1))
-  const monthEnd = toDateStr(new Date(today.getFullYear(), today.getMonth() + 1, 0))
-
-  const records = await sfQuery<SFReservation>(
-    `SELECT ${SF_FIELDS} FROM Reservation__c WHERE ${RT_FILTER} AND Pickup_Date__c >= ${monthStart} AND Pickup_Date__c <= ${monthEnd} ORDER BY Pickup_Date_Time__c ASC`
-  )
-
-  // City sunucu tarafında resolve ediliyor, bu yüzden tüm ay verisini çekip filtreliyoruz
-  return records.map(sfToReservation).filter(r => r.city === city)
+export async function filterByCityMonth(_city: string): Promise<Reservation[]> {
+  // SALESFORCE SORGULARI DEVRE DIŞI — aşırı sorgu limiti aşıldı
+  return []
 }
 
 export async function getSyncMeta() {
