@@ -4,19 +4,19 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Calendar, MapPin, ChevronLeft, ChevronRight, LogOut, Sun, Sunrise,
-  Loader2, RefreshCw, Search, X, BarChart3, Bell, BellOff,
+  Loader2, Search, X, BarChart3, Bell, BellOff,
   TrendingUp, TrendingDown, ArrowRightLeft, Ban, CheckCircle2, AlertCircle,
   Euro
 } from 'lucide-react'
 import Image from 'next/image'
 import type { Reservation } from '@/lib/types'
-import type { StatsData } from '@/lib/salesforce'
+import type { StatsData } from '@/lib/cache'
 import { ReservationDetail } from './reservation-detail'
 import { OverviewSkeleton, TransfersSkeleton } from './skeletons'
 
 const BRAND = '#BE1E2D'
 const BRAND_LIGHT = '#fef2f2'
-const AUTO_SYNC_INTERVAL = 2 * 60 * 1000
+// Auto-sync kaldırıldı — veriler günde 3 kez cron ile güncelleniyor (09:00, 15:00, 21:00)
 
 function toDateStr(d: Date): string {
   const year = d.getFullYear()
@@ -554,7 +554,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [normalCount, setNormalCount] = useState(0)
   const [cancelledCount, setCancelledCount] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [syncing, setSyncing] = useState(false)
+  const syncing = false // Kaldırıldı — cron ile güncelleniyor
   const [lastSync, setLastSync] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
@@ -693,44 +693,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Manuel yenileme (Salesforce'dan taze veri çek)
-  async function handleRefresh(silent = false) {
-    if (syncing) return
-    setSyncing(true)
-    if (!silent) toast.info('Veriler güncelleniyor...')
-    try {
-      // Stats cache'i bypass etmek için timestamp ekle
-      const res = await fetch(`/api/stats?t=${Date.now()}`)
-      if (res.ok) {
-        const newStats = await res.json()
-        // Bildirim: bugünkü sayı arttıysa
-        if (prevTodayCount.current !== null && newStats.todayCount > prevTodayCount.current) {
-          const diff = newStats.todayCount - prevTodayCount.current
-          if (!silent) { toast.success(`${diff} yeni rezervasyon!`); try { new Audio('/notification.wav').play() } catch {} }
-          if (notificationsEnabled && silent && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-            new Notification('UNICO Travel', { body: `${diff} yeni rezervasyon geldi!`, icon: '/logo.png' })
-            try { new Audio('/notification.wav').play() } catch {}
-          }
-        } else if (!silent) {
-          toast.info('Veriler güncellendi.')
-        }
-        prevTodayCount.current = newStats.todayCount
-        setStats(newStats)
-      }
-      await fetchReservations(selectedDate)
-      setLastSync(new Date().toISOString())
-    } catch {
-      if (!silent) toast.error('Güncelleme başarısız.')
-    }
-    setSyncing(false)
-  }
-
-  // Otomatik yenileme (2 dk)
-  useEffect(() => {
-    const interval = setInterval(() => handleRefresh(true), AUTO_SYNC_INTERVAL)
-    return () => clearInterval(interval)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, notificationsEnabled])
+  // Otomatik yenileme kaldırıldı — veriler günde 3 kez cron ile güncelleniyor
 
   // Tarih değişince veri çek
   useEffect(() => { fetchReservations(selectedDate) }, [selectedDate, fetchReservations])
@@ -818,11 +781,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
                 title={notificationsEnabled ? 'Bildirimleri kapat' : 'Bildirimleri aç'}>
                 {notificationsEnabled ? <Bell size={16} style={{ color: BRAND }} /> : <BellOff size={16} className="text-slate-400" />}
               </button>
-              <button onClick={() => handleRefresh()} disabled={syncing}
-                className="flex items-center gap-1.5 text-sm transition-fast disabled:opacity-50 hover:opacity-80" style={{ color: BRAND }}>
-                <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
-                <span className="hidden sm:inline">{syncing ? 'Yükleniyor...' : 'Yenile'}</span>
-              </button>
+              {/* Yenile butonu kaldırıldı — veriler günde 3 kez otomatik güncelleniyor */}
               <button onClick={handleLogout} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-fast">
                 <LogOut size={16} /><span className="hidden sm:inline">Çıkış</span>
               </button>
@@ -963,13 +922,7 @@ export function Dashboard({ onLogout }: { onLogout: () => void }) {
               </div>
             )}
 
-            {/* Syncing banner */}
-            {syncing && (
-              <div className="rounded-2xl p-4 flex items-center gap-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60">
-                <Loader2 size={20} className="animate-spin shrink-0 text-amber-600" />
-                <p className="text-sm font-medium text-amber-800">Veriler güncelleniyor...</p>
-              </div>
-            )}
+            {/* Syncing banner kaldırıldı */}
 
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-center">

@@ -247,8 +247,12 @@ export interface StatsData {
   cityBreakdown: { city: string; count: number }[]
   cityMonthly: CityMonthly[]
   dailyCounts: { date: string; count: number }[]
+  calendarCounts: { date: string; total: number; cancelled: number }[]
   typeBreakdown: { type: string; count: number }[]
   monthName: string
+  prevMonthCount: number
+  prevMonthRevenue: number
+  prevMonthName: string
 }
 
 // Stats in-memory cache — 30 saniye TTL
@@ -282,6 +286,11 @@ export async function getStats(): Promise<StatsData> {
   const thirtyDaysAgo = new Date(today)
   thirtyDaysAgo.setDate(today.getDate() - 29)
   const thirtyDaysAgoISO = toDateStr(thirtyDaysAgo)
+
+  const prevMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+  const prevMonthStartISO = toDateStr(prevMonthStart)
+  const prevMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0)
+  const prevMonthEndISO = toDateStr(prevMonthEnd)
 
   const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
 
@@ -358,9 +367,26 @@ export async function getStats(): Promise<StatsData> {
         GROUP BY city ORDER BY revenue DESC`,
       args: [monthStartISO, monthEndISO],
     },
+    // 9) Takvim — bu ay gün gün (total + cancelled)
+    {
+      sql: `SELECT transfer_date AS date,
+          COUNT(*) AS total,
+          SUM(CASE WHEN type = 'cancelled' THEN 1 ELSE 0 END) AS cancelled
+        FROM reservations WHERE transfer_date >= ? AND transfer_date <= ?
+        GROUP BY transfer_date ORDER BY transfer_date`,
+      args: [monthStartISO, monthEndISO],
+    },
+    // 10) Geçen ay sayı + ciro
+    {
+      sql: `SELECT
+          SUM(CASE WHEN type != 'cancelled' THEN 1 ELSE 0 END) AS prev_count,
+          SUM(CASE WHEN type != 'cancelled' THEN CAST(REPLACE(journey_charge, 'EUR ', '') AS REAL) ELSE 0 END) AS prev_revenue
+        FROM reservations WHERE transfer_date >= ? AND transfer_date <= ? AND journey_charge IS NOT NULL AND journey_charge != ''`,
+      args: [prevMonthStartISO, prevMonthEndISO],
+    },
   ])
 
-  const [summaryRes, cityMonthRes, dailyRes, cityAllRes, typeRes, revenueRes, todayCityRevRes, monthCityRevRes] = results
+  const [summaryRes, cityMonthRes, dailyRes, cityAllRes, typeRes, revenueRes, todayCityRevRes, monthCityRevRes, calendarRes, prevMonthRes] = results
 
   const s = summaryRes.rows[0] as unknown as Record<string, number>
 
@@ -400,6 +426,22 @@ export async function getStats(): Promise<StatsData> {
   })
 
   const rev = revenueRes.rows[0] as unknown as Record<string, number>
+  const prevM = prevMonthRes.rows[0] as unknown as Record<string, number>
+
+  // Takvim verisini gün gün doldur
+  const calendarMap = new Map<string, { total: number; cancelled: number }>()
+  for (const row of calendarRes.rows) {
+    const r = row as unknown as Record<string, unknown>
+    calendarMap.set(r.date as string, { total: Number(r.total), cancelled: Number(r.cancelled) })
+  }
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+  const calendarCounts: { date: string; total: number; cancelled: number }[] = []
+  for (let i = 1; i <= daysInMonth; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth(), i)
+    const dateStr = toDateStr(d)
+    const entry = calendarMap.get(dateStr) || { total: 0, cancelled: 0 }
+    calendarCounts.push({ date: dateStr, ...entry })
+  }
 
   const result: StatsData = {
     totalAll: Number(s.total_all) || 0,
@@ -423,8 +465,12 @@ export async function getStats(): Promise<StatsData> {
     cityBreakdown,
     cityMonthly,
     dailyCounts,
+    calendarCounts,
     typeBreakdown,
     monthName: monthNames[today.getMonth()],
+    prevMonthCount: Number(prevM?.prev_count) || 0,
+    prevMonthRevenue: Number(prevM?.prev_revenue) || 0,
+    prevMonthName: monthNames[prevMonthStart.getMonth()],
   }
 
   statsCache = { data: result, time: Date.now() }

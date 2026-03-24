@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { searchReservations } from '@/lib/salesforce'
+import { searchReservations } from '@/lib/cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
   const cityGroups: Record<string, typeof results> = {}
   let cancelledCount = 0
-  
+
   for (const r of results) {
     if (!cityGroups[r.city]) cityGroups[r.city] = []
     cityGroups[r.city].push(r)
