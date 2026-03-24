@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { syncFromApi } from '@/lib/booking-api'
+import { syncFromSalesforce } from '@/lib/salesforce'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * Vercel Cron ile günde 3 kez çağrılır (09:00, 15:00, 21:00 Türkiye saati)
- * CRON_SECRET ile korunur — sadece Vercel cron tetikleyebilir
+ * SF'den veri çekip Turso DB'ye yazar
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -16,9 +16,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log('[CRON] Sync başlatılıyor...')
-    const result = await syncFromApi()
-    console.log(`[CRON] Sync tamamlandı: ${result.synced} işlendi, toplam: ${result.total}`)
+    console.log('[CRON] SF sync başlatılıyor...')
+    const result = await syncFromSalesforce()
+    console.log(`[CRON] SF sync tamamlandı: ${result.synced} işlendi, toplam: ${result.total}`)
 
     return NextResponse.json({
       ok: true,
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       syncedAt: new Date().toISOString(),
     })
   } catch (err) {
-    console.error('[CRON] Sync hatası:', err)
+    console.error('[CRON] SF sync hatası:', err)
     return NextResponse.json({ error: 'Sync başarısız' }, { status: 500 })
   }
 }

@@ -235,14 +235,56 @@ const SF_FIELDS = `
 
 const RT_FILTER = "RecordType.Name = 'Booking - Unico'"
 
-export async function filterByDate(_date: string): Promise<Reservation[]> {
-  // SALESFORCE SORGULARI DEVRE DIŞI — aşırı sorgu limiti aşıldı
-  return []
-}
+// =============================================
+// CRON SYNC — Günde 3 kez SF'den çekip Turso'ya yaz
+// =============================================
 
-export async function searchReservations(_query: string): Promise<Reservation[]> {
-  // SALESFORCE SORGULARI DEVRE DIŞI — aşırı sorgu limiti aşıldı
-  return []
+export async function syncFromSalesforce(): Promise<{ synced: number; total: number }> {
+  const { mergeReservations, saveSyncMeta } = await import('./cache')
+  const { getDb, initDb } = await import('./db')
+
+  console.log('[SF Sync] Başlatılıyor...')
+
+  // Bu ay + geçen ay verilerini tek sorguda çek
+  const today = new Date()
+  const prevMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+  const startISO = toDateStr(prevMonthStart)
+
+  const records = await sfQuery<SFReservation>(
+    `SELECT ${SF_FIELDS} FROM Reservation__c WHERE ${RT_FILTER} AND Pickup_Date__c >= ${startISO} ORDER BY Pickup_Date_Time__c ASC`
+  )
+
+  console.log(`[SF Sync] ${records.length} kayıt SF'den çekildi`)
+
+  if (records.length === 0) {
+    return { synced: 0, total: 0 }
+  }
+
+  const reservations = records.map(sfToReservation)
+
+  // Turso'ya yaz
+  await initDb()
+  const BATCH_SIZE = 50
+  let syncedCount = 0
+
+  for (let i = 0; i < reservations.length; i += BATCH_SIZE) {
+    const batch = reservations.slice(i, i + BATCH_SIZE)
+    await mergeReservations(batch)
+    syncedCount += batch.length
+  }
+
+  const db = getDb()
+  const countResult = await db.execute('SELECT COUNT(*) as cnt FROM reservations')
+  const totalCount = Number((countResult.rows[0] as unknown as Record<string, number>).cnt)
+
+  await saveSyncMeta({
+    lastSync: new Date().toISOString(),
+    totalEmails: totalCount,
+    lastUid: 0,
+  })
+
+  console.log(`[SF Sync] Tamamlandı! ${syncedCount} kayıt işlendi. Toplam DB: ${totalCount}`)
+  return { synced: syncedCount, total: totalCount }
 }
 
 export interface CityMonthly {
